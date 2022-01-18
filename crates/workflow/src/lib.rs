@@ -82,23 +82,22 @@ pub fn build_readme(dir: &str) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn generate_rustfmt_config() -> Result<(), Box<dyn Error>> {
-    let rustfmt = include_str!("boilerplate/rustfmt.toml");
-    fs::write("rustfmt.toml", rustfmt)?;
-
-    Ok(())
+pub fn generate_rustfmt_config() -> Result<(), io::Error> {
+    fs::write("rustfmt.toml", include_str!("boilerplate/rustfmt.toml"))
 }
 
-pub fn generate_workflow_script() -> Result<(), Box<dyn Error>> {
-    let rustfmt = include_str!("boilerplate/workflow");
+pub fn generate_workflow_script() -> Result<(), io::Error> {
     let workflow_file = "workflow";
 
-    fs::write(workflow_file, rustfmt)?;
+    fs::write(workflow_file, include_str!("boilerplate/workflow"))?;
     let mut perms = fs::metadata(workflow_file)?.permissions();
     perms.set_mode(0o744);
     fs::set_permissions(workflow_file, perms)?;
 
-    Ok(())
+    fs::write(
+        "bash-completions",
+        include_str!("boilerplate/bash-completions"),
+    )
 }
 
 pub fn generate_license_apache(start_year: i32) -> Result<(), Box<dyn Error>> {
