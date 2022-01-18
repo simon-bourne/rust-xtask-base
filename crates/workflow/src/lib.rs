@@ -218,7 +218,7 @@ fn cargo_fmt() -> WorkflowResult<()> {
 }
 
 pub fn ci_nightly() -> WorkflowResult<()> {
-    cargo_nightly("fmt --all --check")?;
+    cargo_nightly("fmt --all -- --check")?;
     cargo_udeps()
 }
 
