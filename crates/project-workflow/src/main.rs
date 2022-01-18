@@ -17,7 +17,7 @@ fn main() {
         match from_args() {
             Commands::UpdateFiles => {
                 build_readme(".")?;
-                generate_open_source_files(2021)?;
+                generate_open_source_files(2022)?;
             }
             Commands::CiNightly => ci_nightly()?,
             Commands::CiFast => ci_fast()?,
