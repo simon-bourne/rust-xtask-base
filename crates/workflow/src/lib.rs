@@ -9,7 +9,7 @@ use std::{
 };
 
 use chrono::{Datelike, Utc};
-use clap::{Arg, FromArgMatches, IntoApp, App};
+use clap::{Arg, FromArgMatches, IntoApp};
 use clap_complete::Shell;
 use handlebars::{Handlebars, RenderError};
 use serde_json::json;
