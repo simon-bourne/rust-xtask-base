@@ -1,6 +1,5 @@
 use std::{
     env,
-    error::Error,
     fs::{self, File},
     io,
     os::unix::prelude::PermissionsExt,
@@ -13,6 +12,7 @@ use clap::{Arg, FromArgMatches, IntoApp};
 use clap_complete::Shell;
 use handlebars::{handlebars_helper, Handlebars, RenderError};
 use serde_json::json;
+use thiserror::Error;
 
 pub fn from_args<T: IntoApp + FromArgMatches>() -> T {
     let mut app = T::into_app_for_update().arg(
@@ -68,7 +68,7 @@ fn run_process(cmd: &str) -> Result<String, RenderError> {
     Ok(output)
 }
 
-pub fn build_readme(dir: &str) -> Result<(), Box<dyn Error>> {
+pub fn build_readme(dir: &str) -> Result<(), WorkflowError> {
     let mut reg = Handlebars::new();
     reg.set_strict_mode(true);
     reg.register_helper("include", Box::new(include));
@@ -82,11 +82,13 @@ pub fn build_readme(dir: &str) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-pub fn generate_rustfmt_config() -> Result<(), io::Error> {
-    fs::write("rustfmt.toml", include_str!("boilerplate/rustfmt.toml"))
+pub fn generate_rustfmt_config() -> Result<(), WorkflowError> {
+    fs::write("rustfmt.toml", include_str!("boilerplate/rustfmt.toml"))?;
+
+    Ok(())
 }
 
-pub fn generate_workflow_script() -> Result<(), io::Error> {
+pub fn generate_workflow_script() -> Result<(), WorkflowError> {
     let workflow_file = "workflow";
 
     fs::write(workflow_file, include_str!("boilerplate/workflow"))?;
@@ -97,10 +99,12 @@ pub fn generate_workflow_script() -> Result<(), io::Error> {
     fs::write(
         "bash-completions",
         include_str!("boilerplate/bash-completions"),
-    )
+    )?;
+
+    Ok(())
 }
 
-pub fn generate_license_apache(start_year: i32) -> Result<(), Box<dyn Error>> {
+pub fn generate_license_apache(start_year: i32) -> Result<(), WorkflowError> {
     generate_license(
         include_str!("boilerplate/LICENSE-APACHE"),
         "LICENSE-APACHE",
@@ -108,7 +112,7 @@ pub fn generate_license_apache(start_year: i32) -> Result<(), Box<dyn Error>> {
     )
 }
 
-pub fn generate_license_mit(start_year: i32) -> Result<(), Box<dyn Error>> {
+pub fn generate_license_mit(start_year: i32) -> Result<(), WorkflowError> {
     generate_license(
         include_str!("boilerplate/LICENSE-MIT"),
         "LICENSE-MIT",
@@ -116,7 +120,7 @@ pub fn generate_license_mit(start_year: i32) -> Result<(), Box<dyn Error>> {
     )
 }
 
-fn generate_license(template: &str, filename: &str, start_year: i32) -> Result<(), Box<dyn Error>> {
+fn generate_license(template: &str, filename: &str, start_year: i32) -> Result<(), WorkflowError> {
     let mut reg = Handlebars::new();
     reg.set_strict_mode(true);
 
@@ -137,11 +141,28 @@ fn generate_license(template: &str, filename: &str, start_year: i32) -> Result<(
     Ok(())
 }
 
-pub fn generate_open_source_files(start_year: i32) -> Result<(), Box<dyn Error>> {
+pub fn generate_open_source_files(start_year: i32) -> Result<(), WorkflowError> {
     generate_rustfmt_config()?;
     generate_workflow_script()?;
     generate_license_apache(start_year)?;
     generate_license_mit(start_year)?;
 
     Ok(())
+}
+
+// TODO: Better error handling
+// TODO: CI workflows for nightly and stable
+
+#[derive(Error, Debug)]
+#[error("{0}")]
+pub enum WorkflowError{
+    HandleBars(#[from] handlebars::RenderError),
+    IO(#[from] io::Error)
+}
+
+impl WorkflowError {
+    pub fn exit(&self) {
+        eprintln!("{}", self);
+        process::exit(1);
+    }
 }
