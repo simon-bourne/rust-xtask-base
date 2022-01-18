@@ -9,7 +9,7 @@ use std::{
 };
 
 use chrono::{Datelike, Utc};
-use clap::{Arg, FromArgMatches, IntoApp};
+use clap::{App, Arg, ArgMatches, FromArgMatches, IntoApp};
 use clap_complete::Shell;
 use handlebars::{Handlebars, RenderError};
 use serde_json::json;
@@ -23,14 +23,35 @@ pub fn run(f: impl FnOnce() -> WorkflowResult<()>) {
     });
 }
 
+pub fn try_subcmd(
+    name: &str,
+    arg_matches: &ArgMatches,
+    f: impl FnOnce(&ArgMatches) -> WorkflowResult<()>,
+) {
+    if let Some((subcmd, args)) = arg_matches.subcommand() {
+        if name == subcmd {
+            run(|| f(args));
+            process::exit(0);
+        }
+    }
+}
+
 pub fn from_args<T: IntoApp + FromArgMatches>() -> T {
-    let mut app = T::into_app_for_update().arg(
-        Arg::new(SHELL_COMPLETIONS)
-            .long(SHELL_COMPLETIONS)
-            .help("Generate shell completions")
-            .possible_values(Shell::possible_values())
-            .exclusive(true),
-    );
+    let mut app = T::into_app_for_update()
+        .arg(
+            Arg::new(SHELL_COMPLETIONS)
+                .long(SHELL_COMPLETIONS)
+                .help("Generate shell completions")
+                .possible_values(Shell::possible_values())
+                .exclusive(true),
+        )
+        .subcommand(App::new(CARGO_FMT).about("Run cargo fmt"))
+        .subcommand(App::new(CARGO_UDEPS).about("Run cargo udeps"))
+        .subcommand(
+            App::new(CARGO_EXPAND)
+                .about("Run cargo expand")
+                .arg(Arg::new(ARG_PACKAGE).required(true)),
+        );
 
     let arg_matches = app
         .try_get_matches_from_mut(env::args())
@@ -41,10 +62,23 @@ pub fn from_args<T: IntoApp + FromArgMatches>() -> T {
         process::exit(0);
     }
 
+    try_subcmd(CARGO_FMT, &arg_matches, |_| cargo_fmt());
+    try_subcmd(CARGO_UDEPS, &arg_matches, |_| cargo_udeps());
+    try_subcmd(CARGO_EXPAND, &arg_matches, |args| {
+        shell(&format!(
+            "cargo expand --color=always --package '{}' | less -r",
+            args.value_of(ARG_PACKAGE).unwrap()
+        ))
+    });
+
     T::from_arg_matches(&arg_matches).unwrap_or_else(|e| e.exit())
 }
 
 const SHELL_COMPLETIONS: &str = "shell-completions";
+const CARGO_FMT: &str = "fmt";
+const CARGO_UDEPS: &str = "udeps";
+const CARGO_EXPAND: &str = "expand";
+const ARG_PACKAGE: &str = "package";
 
 mod handlebars_helpers {
     use std::fs;
@@ -175,11 +209,11 @@ pub fn cargo(cmd: &str) -> WorkflowResult<()> {
     shell(&format!("cargo {}", cmd))
 }
 
-pub fn cargo_udeps() -> WorkflowResult<()> {
+fn cargo_udeps() -> WorkflowResult<()> {
     cargo_nightly("udeps --all-targets")
 }
 
-pub fn cargo_fmt() -> WorkflowResult<()> {
+fn cargo_fmt() -> WorkflowResult<()> {
     cargo_nightly("fmt --all")
 }
 
