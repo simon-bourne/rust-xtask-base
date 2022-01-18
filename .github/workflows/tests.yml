@@ -38,4 +38,5 @@ jobs:
     - uses: actions-rs/install@v0.1
       with:
         crate: cargo-udeps
-    - run: ./workflow ci-nightly
+    - run: cargo fmt --all -- --check
+    - run: cargo udeps --all-targets
