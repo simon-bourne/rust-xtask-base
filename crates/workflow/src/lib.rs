@@ -1,10 +1,11 @@
 use std::{
-    env,
+    env, error,
     fs::{self, File},
     io,
     os::unix::prelude::PermissionsExt,
     path::Path,
     process::{self, Output},
+    result,
 };
 
 use chrono::{Datelike, Utc};
@@ -12,9 +13,17 @@ use clap::{Arg, FromArgMatches, IntoApp};
 use clap_complete::Shell;
 use handlebars::{handlebars_helper, Handlebars, RenderError};
 use serde_json::json;
-use thiserror::Error;
 
-pub fn from_args<T: IntoApp + FromArgMatches>() -> T {
+pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
+
+pub fn run<T: IntoApp + FromArgMatches>(f: impl FnOnce(T) -> WorkflowResult<()>) {
+    f(from_args()).unwrap_or_else(|e| {
+        eprintln!("{}", e);
+        process::exit(1);
+    });
+}
+
+fn from_args<T: IntoApp + FromArgMatches>() -> T {
     let mut app = T::into_app_for_update().arg(
         Arg::new(SHELL_COMPLETIONS)
             .long(SHELL_COMPLETIONS)
@@ -40,7 +49,7 @@ const SHELL_COMPLETIONS: &str = "shell-completions";
 handlebars_helper!(include: |file: str| { fs::read_to_string(file)? });
 handlebars_helper!(shell: |cmd: str| { run_process(cmd)? });
 
-fn run_process(cmd: &str) -> Result<String, RenderError> {
+fn run_process(cmd: &str) -> result::Result<String, RenderError> {
     let mut shell_cmd = execute::shell(cmd);
 
     let Output {
@@ -68,7 +77,7 @@ fn run_process(cmd: &str) -> Result<String, RenderError> {
     Ok(output)
 }
 
-pub fn build_readme(dir: &str) -> Result<(), WorkflowError> {
+pub fn build_readme(dir: &str) -> WorkflowResult<()> {
     let mut reg = Handlebars::new();
     reg.set_strict_mode(true);
     reg.register_helper("include", Box::new(include));
@@ -82,13 +91,13 @@ pub fn build_readme(dir: &str) -> Result<(), WorkflowError> {
     Ok(())
 }
 
-pub fn generate_rustfmt_config() -> Result<(), WorkflowError> {
+pub fn generate_rustfmt_config() -> WorkflowResult<()> {
     fs::write("rustfmt.toml", include_str!("boilerplate/rustfmt.toml"))?;
 
     Ok(())
 }
 
-pub fn generate_workflow_script() -> Result<(), WorkflowError> {
+pub fn generate_workflow_script() -> WorkflowResult<()> {
     let workflow_file = "workflow";
 
     fs::write(workflow_file, include_str!("boilerplate/workflow"))?;
@@ -104,7 +113,7 @@ pub fn generate_workflow_script() -> Result<(), WorkflowError> {
     Ok(())
 }
 
-pub fn generate_license_apache(start_year: i32) -> Result<(), WorkflowError> {
+pub fn generate_license_apache(start_year: i32) -> WorkflowResult<()> {
     generate_license(
         include_str!("boilerplate/LICENSE-APACHE"),
         "LICENSE-APACHE",
@@ -112,7 +121,7 @@ pub fn generate_license_apache(start_year: i32) -> Result<(), WorkflowError> {
     )
 }
 
-pub fn generate_license_mit(start_year: i32) -> Result<(), WorkflowError> {
+pub fn generate_license_mit(start_year: i32) -> WorkflowResult<()> {
     generate_license(
         include_str!("boilerplate/LICENSE-MIT"),
         "LICENSE-MIT",
@@ -120,7 +129,7 @@ pub fn generate_license_mit(start_year: i32) -> Result<(), WorkflowError> {
     )
 }
 
-fn generate_license(template: &str, filename: &str, start_year: i32) -> Result<(), WorkflowError> {
+fn generate_license(template: &str, filename: &str, start_year: i32) -> WorkflowResult<()> {
     let mut reg = Handlebars::new();
     reg.set_strict_mode(true);
 
@@ -141,7 +150,7 @@ fn generate_license(template: &str, filename: &str, start_year: i32) -> Result<(
     Ok(())
 }
 
-pub fn generate_open_source_files(start_year: i32) -> Result<(), WorkflowError> {
+pub fn generate_open_source_files(start_year: i32) -> WorkflowResult<()> {
     generate_rustfmt_config()?;
     generate_workflow_script()?;
     generate_license_apache(start_year)?;
@@ -150,19 +159,4 @@ pub fn generate_open_source_files(start_year: i32) -> Result<(), WorkflowError> 
     Ok(())
 }
 
-// TODO: Better error handling
 // TODO: CI workflows for nightly and stable
-
-#[derive(Error, Debug)]
-#[error("{0}")]
-pub enum WorkflowError{
-    HandleBars(#[from] handlebars::RenderError),
-    IO(#[from] io::Error)
-}
-
-impl WorkflowError {
-    pub fn exit(&self) {
-        eprintln!("{}", self);
-        process::exit(1);
-    }
-}
