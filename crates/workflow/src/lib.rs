@@ -11,7 +11,7 @@ use std::{
 use chrono::{Datelike, Utc};
 use clap::{Arg, FromArgMatches, IntoApp};
 use clap_complete::Shell;
-use handlebars::{handlebars_helper, Handlebars, RenderError};
+use handlebars::{Handlebars, RenderError};
 use serde_json::json;
 
 pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
@@ -46,8 +46,16 @@ fn from_args<T: IntoApp + FromArgMatches>() -> T {
 
 const SHELL_COMPLETIONS: &str = "shell-completions";
 
-handlebars_helper!(include: |file: str| { fs::read_to_string(file)? });
-handlebars_helper!(shell: |cmd: str| { run_process(cmd)? });
+mod handlebars_helpers {
+    use std::fs;
+
+    use handlebars::handlebars_helper;
+
+    use crate::run_process;
+
+    handlebars_helper!(include: |file: str| { fs::read_to_string(file)? });
+    handlebars_helper!(shell: |cmd: str| { run_process(cmd)? });
+}
 
 fn run_process(cmd: &str) -> result::Result<String, RenderError> {
     let mut shell_cmd = execute::shell(cmd);
@@ -80,8 +88,8 @@ fn run_process(cmd: &str) -> result::Result<String, RenderError> {
 pub fn build_readme(dir: &str) -> WorkflowResult<()> {
     let mut reg = Handlebars::new();
     reg.set_strict_mode(true);
-    reg.register_helper("include", Box::new(include));
-    reg.register_helper("shell", Box::new(shell));
+    reg.register_helper("include", Box::new(handlebars_helpers::include));
+    reg.register_helper("shell", Box::new(handlebars_helpers::shell));
 
     let dir = Path::new(dir);
     let template = fs::read_to_string(dir.join("README.tmpl.md"))?;
@@ -159,4 +167,57 @@ pub fn generate_open_source_files(start_year: i32) -> WorkflowResult<()> {
     Ok(())
 }
 
-// TODO: CI workflows for nightly and stable
+pub fn cargo_nightly(cmd: &str) -> WorkflowResult<()> {
+    shell(&format!("cargo +nightly {}", cmd))
+}
+
+pub fn cargo(cmd: &str) -> WorkflowResult<()> {
+    shell(&format!("cargo {}", cmd))
+}
+
+pub fn cargo_udeps() -> WorkflowResult<()> {
+    cargo_nightly("udeps --all-targets")
+}
+
+pub fn cargo_fmt() -> WorkflowResult<()> {
+    cargo_nightly("fmt --all")
+}
+
+pub fn ci_nightly() -> WorkflowResult<()> {
+    cargo_fmt()?;
+    cargo_udeps()
+}
+
+pub fn ci_fast() -> WorkflowResult<()> {
+    cargo("clippy --all-targets -- -D warnings -D clippy::all")?;
+    cargo("test")?;
+    cargo("build --all-targets")?;
+    cargo("doc")?;
+
+    Ok(())
+}
+
+pub fn ci_stable() -> WorkflowResult<()> {
+    ci_fast()?;
+    cargo("test --benches --tests --release")
+}
+
+pub fn ci() -> WorkflowResult<()> {
+    ci_stable()?;
+    ci_nightly()?;
+    Ok(())
+}
+
+pub fn shell(command: &str) -> WorkflowResult<()> {
+    let exit_status = execute::shell(command).status()?;
+
+    if !exit_status.success() {
+        if let Some(code) = exit_status.code() {
+            process::exit(code);
+        } else {
+            process::exit(1);
+        }
+    }
+
+    Ok(())
+}
