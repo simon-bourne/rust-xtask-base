@@ -6,6 +6,8 @@ edition = "2021"
 [dependencies]
 chrono = "0.4.19"
 clap = { version = "*", features = ["derive"] }
+clap_complete = "3.0.4"
 execute = "0.2.9"
 handlebars = "4.2.1"
+indoc = "1.0.3"
 serde_json = "1.0.75"
