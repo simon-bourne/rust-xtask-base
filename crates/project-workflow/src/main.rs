@@ -1,6 +1,6 @@
 use clap::Parser;
 use workflow::{
-    build_readme, cargo_fmt, cargo_udeps, ci, ci_fast, ci_nightly, ci_stable,
+    build_readme, cargo_fmt, cargo_udeps, ci, ci_fast, ci_nightly, ci_stable, from_args,
     generate_open_source_files, run,
 };
 
@@ -16,8 +16,8 @@ enum Commands {
 }
 
 fn main() {
-    run(|commands| {
-        match commands {
+    run(|| {
+        match from_args() {
             Commands::UpdateFiles => {
                 build_readme(".")?;
                 generate_open_source_files(2021)?;

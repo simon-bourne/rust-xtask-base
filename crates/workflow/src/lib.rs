@@ -9,21 +9,21 @@ use std::{
 };
 
 use chrono::{Datelike, Utc};
-use clap::{Arg, FromArgMatches, IntoApp};
+use clap::{Arg, FromArgMatches, IntoApp, App};
 use clap_complete::Shell;
 use handlebars::{Handlebars, RenderError};
 use serde_json::json;
 
 pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 
-pub fn run<T: IntoApp + FromArgMatches>(f: impl FnOnce(T) -> WorkflowResult<()>) {
-    f(from_args()).unwrap_or_else(|e| {
+pub fn run(f: impl FnOnce() -> WorkflowResult<()>) {
+    f().unwrap_or_else(|e| {
         eprintln!("{}", e);
         process::exit(1);
     });
 }
 
-fn from_args<T: IntoApp + FromArgMatches>() -> T {
+pub fn from_args<T: IntoApp + FromArgMatches>() -> T {
     let mut app = T::into_app_for_update().arg(
         Arg::new(SHELL_COMPLETIONS)
             .long(SHELL_COMPLETIONS)
