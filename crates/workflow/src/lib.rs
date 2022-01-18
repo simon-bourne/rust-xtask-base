@@ -237,8 +237,8 @@ pub fn ci_stable() -> WorkflowResult<()> {
 }
 
 pub fn ci() -> WorkflowResult<()> {
-    ci_stable()?;
     ci_nightly()?;
+    ci_stable()?;
     Ok(())
 }
 
