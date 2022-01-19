@@ -42,7 +42,7 @@ pub fn run(f: impl FnOnce() -> WorkflowResult<()>) {
 pub enum CommonCmds {
     ShellCompletion { shell: Shell },
     Fmt,
-    UDeps,
+    Udeps,
     MacroExpand { package: String },
 }
 
@@ -55,7 +55,7 @@ impl CommonCmds {
                 Ok(())
             }
             CommonCmds::Fmt => cargo_fmt(false),
-            CommonCmds::UDeps => cargo_udeps(),
+            CommonCmds::Udeps => cargo_udeps(),
             CommonCmds::MacroExpand { package } => {
                 duct::cmd("cargo", ["expand", "--color=always", "--package", package])
                     .pipe(duct::cmd("less", ["-r"]))
