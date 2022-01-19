@@ -3,7 +3,10 @@ use xtask_base::{build_readme, ci, generate_open_source_files, run, CommonCmds, 
 
 #[derive(Parser)]
 enum Commands {
-    UpdateFiles,
+    Codegen {
+        #[clap(long)]
+        check: bool,
+    },
     Ci {
         #[clap(long)]
         fast: bool,
@@ -16,11 +19,15 @@ enum Commands {
 fn main() {
     run(|| {
         match Commands::parse() {
-            Commands::UpdateFiles => {
-                build_readme(".")?;
-                generate_open_source_files(2022)?;
+            Commands::Codegen { check } => {
+                build_readme(".", check)?;
+                generate_open_source_files(2022, check)?;
             }
-            Commands::Ci { fast, toolchain } => ci(fast, toolchain)?,
+            Commands::Ci { fast, toolchain } => {
+                build_readme(".", true)?;
+                generate_open_source_files(2022, true)?;
+                ci(fast, toolchain)?;
+            }
             Commands::Common(cmds) => cmds.run::<Commands>()?,
         }
 

@@ -1,6 +1,5 @@
 use std::{
-    env, error,
-    fs::{self, File},
+    env, error, fs,
     path::Path,
     process::{self, Output},
     result,
@@ -12,7 +11,7 @@ use clap_complete::Shell;
 use handlebars::{Handlebars, RenderError};
 use parse_display::{Display, FromStr};
 use serde_json::json;
-use xshell::{cmd, mkdir_p, pushd, write_file};
+use xshell::{cmd, mkdir_p, pushd, read_file, write_file};
 
 pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 
@@ -106,7 +105,7 @@ fn run_process(cmd: &str) -> result::Result<String, RenderError> {
     Ok(output)
 }
 
-pub fn build_readme(dir: &str) -> WorkflowResult<()> {
+pub fn build_readme(dir: &str, check: bool) -> WorkflowResult<()> {
     let mut reg = Handlebars::new();
     reg.set_strict_mode(true);
     reg.register_helper("include", Box::new(handlebars_helpers::include));
@@ -115,41 +114,78 @@ pub fn build_readme(dir: &str) -> WorkflowResult<()> {
     let dir = Path::new(dir);
     let template = fs::read_to_string(dir.join("README.tmpl.md"))?;
 
-    reg.render_template_to_write(&template, &"{}", File::create(dir.join("README.md"))?)?;
+    update_file(
+        &dir.join("README.md"),
+        &reg.render_template(&template, &"{}")?,
+        check,
+    )
+}
+
+// TODO: Rename WorkflowResult to XTaskResult?
+fn update_file(path: impl AsRef<Path>, contents: &str, check: bool) -> WorkflowResult<()> {
+    if check {
+        let existing_contents = read_file(path.as_ref())?;
+
+        if existing_contents != contents {
+            return Err(
+                format!("Differences found in file \"{}\"", path.as_ref().display()).into(),
+            );
+        }
+    } else {
+        write_file(path, contents)?;
+    }
 
     Ok(())
 }
 
-pub fn generate_rustfmt_config() -> WorkflowResult<()> {
-    fs::write("rustfmt.toml", include_str!("boilerplate/rustfmt.toml"))?;
+pub fn generate_rustfmt_config(check: bool) -> WorkflowResult<()> {
+    update_file(
+        "rustfmt.toml",
+        include_str!("boilerplate/rustfmt.toml"),
+        check,
+    )?;
 
     Ok(())
 }
 
-pub fn generate_cargo_config() -> WorkflowResult<()> {
-    mkdir_p(".cargo")?;
-    write_file(".cargo/config", include_str!("boilerplate/.cargo/config"))?;
+pub fn generate_cargo_config(check: bool) -> WorkflowResult<()> {
+    if !check {
+        mkdir_p(".cargo")?;
+    }
+
+    update_file(
+        ".cargo/config",
+        include_str!("boilerplate/.cargo/config"),
+        check,
+    )?;
 
     Ok(())
 }
 
-pub fn generate_license_apache(start_year: i32) -> WorkflowResult<()> {
+pub fn generate_license_apache(start_year: i32, check: bool) -> WorkflowResult<()> {
     generate_license(
         include_str!("boilerplate/LICENSE-APACHE"),
         "LICENSE-APACHE",
         start_year,
+        check,
     )
 }
 
-pub fn generate_license_mit(start_year: i32) -> WorkflowResult<()> {
+pub fn generate_license_mit(start_year: i32, check: bool) -> WorkflowResult<()> {
     generate_license(
         include_str!("boilerplate/LICENSE-MIT"),
         "LICENSE-MIT",
         start_year,
+        check,
     )
 }
 
-fn generate_license(template: &str, filename: &str, start_year: i32) -> WorkflowResult<()> {
+fn generate_license(
+    template: &str,
+    filename: &str,
+    start_year: i32,
+    check: bool,
+) -> WorkflowResult<()> {
     let mut reg = Handlebars::new();
     reg.set_strict_mode(true);
 
@@ -161,20 +197,18 @@ fn generate_license(template: &str, filename: &str, start_year: i32) -> Workflow
         format!("{}-{}", start_year, end_year)
     };
 
-    reg.render_template_to_write(
-        template,
-        &json!({ "copyright_range": copyright_range }),
-        File::create(filename)?,
-    )?;
-
-    Ok(())
+    update_file(
+        filename,
+        &reg.render_template(template, &json!({ "copyright_range": copyright_range }))?,
+        check,
+    )
 }
 
-pub fn generate_open_source_files(start_year: i32) -> WorkflowResult<()> {
-    generate_rustfmt_config()?;
-    generate_cargo_config()?;
-    generate_license_apache(start_year)?;
-    generate_license_mit(start_year)?;
+pub fn generate_open_source_files(start_year: i32, check: bool) -> WorkflowResult<()> {
+    generate_rustfmt_config(check)?;
+    generate_cargo_config(check)?;
+    generate_license_apache(start_year, check)?;
+    generate_license_mit(start_year, check)?;
 
     Ok(())
 }
