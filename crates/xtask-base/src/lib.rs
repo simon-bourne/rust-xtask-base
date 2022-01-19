@@ -1,5 +1,6 @@
-use std::{env, error, fs, path::Path, process};
+use std::{error, fs, path::Path, process};
 
+use cargo_metadata::MetadataCommand;
 use chrono::{Datelike, Utc};
 use clap::IntoApp;
 use clap_complete::Shell;
@@ -11,7 +12,6 @@ mod template;
 
 pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 
-// TODO: Use "CARGO" env to get cargo binary
 #[derive(clap::Parser)]
 pub enum CommonCmds {
     ShellCompletion { shell: Shell },
@@ -48,18 +48,7 @@ pub fn run(f: impl FnOnce() -> WorkflowResult<()>) {
 }
 
 fn run_or_err(f: impl FnOnce() -> WorkflowResult<()>) -> WorkflowResult<()> {
-    // TODO: Use cargo metadata to get workspace root?
-    let manifest_dir = env::var("CARGO_MANIFEST_DIR")?;
-    let _dir = pushd(
-        Path::new(&manifest_dir)
-            .ancestors()
-            .nth(2)
-            .ok_or(format!(
-                "Couldn't find workspace root from \"{}\"",
-                manifest_dir
-            ))?
-            .to_path_buf(),
-    );
+    let _dir = pushd(MetadataCommand::new().exec()?.workspace_root)?;
 
     f()
 }

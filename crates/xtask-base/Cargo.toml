@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+cargo_metadata = "0.14.1"
 chrono = "0.4.19"
 clap = { version = "*", features = ["derive"] }
 clap_complete = "3.0.4"
