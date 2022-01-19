@@ -1,2 +1,0 @@
-# source this file to get bash completions for `./workflow`
-source <(./workflow --shell-completions bash)

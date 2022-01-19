@@ -1,6 +1,6 @@
 [workspace]
 
 members = [
-    "crates/workflow",
-    "crates/project-workflow",
+    "crates/xtask-base",
+    "crates/xtask",
 ]

@@ -1,5 +1,5 @@
 use clap::Parser;
-use workflow::{
+use xtask_base::{
     build_readme, ci, ci_fast, ci_nightly, ci_stable, from_args, generate_open_source_files, run,
 };
 

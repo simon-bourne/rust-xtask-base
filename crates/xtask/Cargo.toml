@@ -1,8 +1,8 @@
 [package]
-name = "project-workflow"
+name = "xtask"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 clap = "3.0.9"
-workflow = { path = "../workflow" }
+xtask-base = { path = "../xtask-base" }

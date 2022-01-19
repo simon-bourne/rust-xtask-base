@@ -17,7 +17,7 @@ jobs:
         components: clippy
     - uses: Swatinem/rust-cache@3bb3a9a087029c7bc392586cdc88cb6f66b9c6ef
       if: ${{ !env.ACT }}
-    - run: ./workflow ci-stable
+    - run: cargo xtask ci-stable
 
   nightly-toolchain:
     strategy:
