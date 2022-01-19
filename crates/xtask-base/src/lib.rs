@@ -2,7 +2,6 @@ use std::{
     error,
     fs::{self, File},
     io,
-    os::unix::prelude::PermissionsExt,
     path::Path,
     process::{self, Output},
     result,
@@ -13,12 +12,12 @@ use clap::{ArgMatches, IntoApp};
 use clap_complete::Shell;
 use handlebars::{Handlebars, RenderError};
 use serde_json::json;
-use xshell::cmd;
+use xshell::{cmd, mkdir_p, write_file};
 
 pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 
+// TODO: Update README
 // TODO: Add .cargo/config with the alias for xtask
-// TODO: Remove workflow and bash-completions scripts
 // TODO: Generate completions to target/...
 // TODO: Add an alias/completion to complete from target/completions
 // TODO: Add an alias to generate completions
@@ -137,18 +136,9 @@ pub fn generate_rustfmt_config() -> WorkflowResult<()> {
     Ok(())
 }
 
-pub fn generate_workflow_script() -> WorkflowResult<()> {
-    let workflow_file = "workflow";
-
-    fs::write(workflow_file, include_str!("boilerplate/workflow"))?;
-    let mut perms = fs::metadata(workflow_file)?.permissions();
-    perms.set_mode(0o744);
-    fs::set_permissions(workflow_file, perms)?;
-
-    fs::write(
-        "bash-completions",
-        include_str!("boilerplate/bash-completions"),
-    )?;
+pub fn generate_cargo_config() -> WorkflowResult<()> {
+    mkdir_p(".cargo")?;
+    write_file(".cargo/config", include_str!("boilerplate/.cargo/config"))?;
 
     Ok(())
 }
@@ -192,7 +182,7 @@ fn generate_license(template: &str, filename: &str, start_year: i32) -> Workflow
 
 pub fn generate_open_source_files(start_year: i32) -> WorkflowResult<()> {
     generate_rustfmt_config()?;
-    generate_workflow_script()?;
+    generate_cargo_config()?;
     generate_license_apache(start_year)?;
     generate_license_mit(start_year)?;
 
