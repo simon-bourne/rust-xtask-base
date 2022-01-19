@@ -17,7 +17,7 @@ enum Commands {
 }
 
 fn main() {
-    run(|| {
+    run(|workspace| {
         match Commands::parse() {
             Commands::Codegen { check } => {
                 build_readme(".", check)?;
@@ -28,7 +28,7 @@ fn main() {
                 generate_open_source_files(2022, true)?;
                 ci(fast, toolchain)?;
             }
-            Commands::Common(cmds) => cmds.run::<Commands>()?,
+            Commands::Common(cmds) => cmds.run::<Commands>(workspace)?,
         }
 
         Ok(())

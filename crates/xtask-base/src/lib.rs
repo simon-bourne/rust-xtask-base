@@ -1,6 +1,6 @@
 use std::{error, fs, path::Path, process};
 
-use cargo_metadata::MetadataCommand;
+use cargo_metadata::{Metadata, MetadataCommand};
 use chrono::{Datelike, Utc};
 use clap::IntoApp;
 use clap_complete::Shell;
@@ -14,18 +14,29 @@ pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 
 #[derive(clap::Parser)]
 pub enum CommonCmds {
-    ShellCompletion { shell: Shell },
+    /// Generate shell completions
+    ShellCompletion {
+        shell: Shell,
+    },
     Fmt,
     Udeps,
-    MacroExpand { package: String },
+    MacroExpand {
+        package: String,
+    },
 }
 
 impl CommonCmds {
-    pub fn run<T: IntoApp>(&self) -> WorkflowResult<()> {
+    pub fn run<T: IntoApp>(&self, workspace: &Workspace) -> WorkflowResult<()> {
         match self {
             CommonCmds::ShellCompletion { shell } => {
-                clap_complete::generate_to(*shell, &mut T::into_app(), "./cargo-xtask", "target")?;
-                println!("Completions file generated in `target` dir");
+                let target_dir = workspace.target_dir();
+                clap_complete::generate_to(
+                    *shell,
+                    &mut T::into_app(),
+                    "./cargo-xtask",
+                    target_dir,
+                )?;
+                println!("Completions file generated in `{}`", target_dir.display());
                 Ok(())
             }
             CommonCmds::Fmt => cargo_fmt(false),
@@ -40,17 +51,27 @@ impl CommonCmds {
     }
 }
 
-pub fn run(f: impl FnOnce() -> WorkflowResult<()>) {
+pub struct Workspace(Metadata);
+
+impl Workspace {
+    pub fn target_dir(&self) -> &Path {
+        self.0.target_directory.as_std_path()
+    }
+}
+
+pub fn run(f: impl FnOnce(&Workspace) -> WorkflowResult<()>) {
     run_or_err(f).unwrap_or_else(|e| {
         eprintln!("{}", e);
         process::exit(1);
     });
 }
 
-fn run_or_err(f: impl FnOnce() -> WorkflowResult<()>) -> WorkflowResult<()> {
-    let _dir = pushd(MetadataCommand::new().exec()?.workspace_root)?;
+fn run_or_err(f: impl FnOnce(&Workspace) -> WorkflowResult<()>) -> WorkflowResult<()> {
+    let metadata = MetadataCommand::new().exec()?;
 
-    f()
+    let _dir = pushd(&metadata.workspace_root)?;
+
+    f(&Workspace(metadata))
 }
 
 pub fn build_readme(dir: &str, check: bool) -> WorkflowResult<()> {
