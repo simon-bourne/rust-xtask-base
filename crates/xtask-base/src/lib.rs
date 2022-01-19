@@ -1,5 +1,5 @@
 use std::{
-    env, error,
+    error,
     fs::{self, File},
     io,
     os::unix::prelude::PermissionsExt,
@@ -9,7 +9,7 @@ use std::{
 };
 
 use chrono::{Datelike, Utc};
-use clap::{App, Arg, ArgMatches, FromArgMatches, IntoApp};
+use clap::{ArgMatches, IntoApp};
 use clap_complete::Shell;
 use handlebars::{Handlebars, RenderError};
 use serde_json::json;
@@ -17,24 +17,52 @@ use xshell::cmd;
 
 pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 
-// TODO: Rename repo to xtask-base
 // TODO: Add .cargo/config with the alias for xtask
 // TODO: Remove workflow and bash-completions scripts
-//
-// TODO: Use clap::flatten to optionally add support for command line stuff
-// TODO: cd to cargo dir (CARGO_MANIFEST_DIR)
-// TODO: Use "CARGO" env to get cargo binary
-// TODO: run via cargo xtask
 // TODO: Generate completions to target/...
 // TODO: Add an alias/completion to complete from target/completions
 // TODO: Add an alias to generate completions
-// TODO: Run only needs to take an error and exit (call it catch)?
+// TODO: run via cargo xtask
+// TODO: cd to cargo dir (CARGO_MANIFEST_DIR)
+// TODO: Use "CARGO" env to get cargo binary
 
 pub fn run(f: impl FnOnce() -> WorkflowResult<()>) {
     f().unwrap_or_else(|e| {
         eprintln!("{}", e);
         process::exit(1);
     });
+}
+
+#[derive(clap::Parser)]
+pub enum CommonCmds {
+    ShellCompletion { shell: Shell },
+    Fmt,
+    UDeps,
+    MacroExpand { package: String },
+}
+
+impl CommonCmds {
+    pub fn run<T: IntoApp>(&self) -> WorkflowResult<()> {
+        match self {
+            CommonCmds::ShellCompletion { shell } => {
+                clap_complete::generate(
+                    *shell,
+                    &mut T::into_app(),
+                    "./cargo-xtask",
+                    &mut io::stdout(),
+                );
+                Ok(())
+            }
+            CommonCmds::Fmt => cargo_fmt(false),
+            CommonCmds::UDeps => cargo_udeps(),
+            CommonCmds::MacroExpand { package } => {
+                duct::cmd("cargo", ["expand", "--color=always", "--package", package])
+                    .pipe(duct::cmd("less", ["-r"]))
+                    .run()?;
+                Ok(())
+            }
+        }
+    }
 }
 
 pub fn try_subcmd(
@@ -49,51 +77,6 @@ pub fn try_subcmd(
         }
     }
 }
-
-pub fn from_args<T: IntoApp + FromArgMatches>() -> T {
-    let mut app = T::into_app_for_update()
-        .arg(
-            Arg::new(SHELL_COMPLETIONS)
-                .long(SHELL_COMPLETIONS)
-                .help("Generate shell completions")
-                .possible_values(Shell::possible_values())
-                .exclusive(true),
-        )
-        .subcommand(App::new(CARGO_FMT).about("Run cargo fmt"))
-        .subcommand(App::new(CARGO_UDEPS).about("Run cargo udeps"))
-        .subcommand(
-            App::new(CARGO_EXPAND)
-                .about("Run cargo expand")
-                .arg(Arg::new(ARG_PACKAGE).required(true)),
-        );
-
-    let arg_matches = app
-        .try_get_matches_from_mut(env::args())
-        .unwrap_or_else(|e| e.exit());
-
-    if let Ok(generator) = arg_matches.value_of_t::<Shell>(SHELL_COMPLETIONS) {
-        clap_complete::generate(generator, &mut app, "./workflow", &mut io::stdout());
-        process::exit(0);
-    }
-
-    try_subcmd(CARGO_FMT, &arg_matches, |_| cargo_fmt(false));
-    try_subcmd(CARGO_UDEPS, &arg_matches, |_| cargo_udeps());
-    try_subcmd(CARGO_EXPAND, &arg_matches, |args| {
-        let package = args.value_of(ARG_PACKAGE).unwrap();
-        duct::cmd("cargo", ["expand", "--color=always", "--package", package])
-            .pipe(duct::cmd("less", ["-r"]))
-            .run()?;
-        Ok(())
-    });
-
-    T::from_arg_matches(&arg_matches).unwrap_or_else(|e| e.exit())
-}
-
-const SHELL_COMPLETIONS: &str = "shell-completions";
-const CARGO_FMT: &str = "fmt";
-const CARGO_UDEPS: &str = "udeps";
-const CARGO_EXPAND: &str = "expand";
-const ARG_PACKAGE: &str = "package";
 
 mod handlebars_helpers {
     use std::fs;

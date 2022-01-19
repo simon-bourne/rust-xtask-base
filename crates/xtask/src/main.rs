@@ -1,6 +1,6 @@
 use clap::Parser;
 use xtask_base::{
-    build_readme, ci, ci_fast, ci_nightly, ci_stable, from_args, generate_open_source_files, run,
+    build_readme, ci, ci_fast, ci_nightly, ci_stable, generate_open_source_files, run, CommonCmds,
 };
 
 #[derive(Parser)]
@@ -10,11 +10,13 @@ enum Commands {
     CiFast,
     CiStable,
     Ci,
+    #[clap(flatten)]
+    Common(CommonCmds)
 }
 
 fn main() {
     run(|| {
-        match from_args() {
+        match Commands::parse() {
             Commands::UpdateFiles => {
                 build_readme(".")?;
                 generate_open_source_files(2022)?;
@@ -23,6 +25,7 @@ fn main() {
             Commands::CiFast => ci_fast()?,
             Commands::CiStable => ci_stable()?,
             Commands::Ci => ci()?,
+            Commands::Common(cmds) => cmds.run::<Commands>()?
         }
 
         Ok(())
