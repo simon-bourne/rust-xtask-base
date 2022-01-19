@@ -13,6 +13,7 @@ use clap::{App, Arg, ArgMatches, FromArgMatches, IntoApp};
 use clap_complete::Shell;
 use handlebars::{Handlebars, RenderError};
 use serde_json::json;
+use xshell::cmd;
 
 pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 
@@ -62,13 +63,14 @@ pub fn from_args<T: IntoApp + FromArgMatches>() -> T {
         process::exit(0);
     }
 
-    try_subcmd(CARGO_FMT, &arg_matches, |_| cargo_fmt());
+    try_subcmd(CARGO_FMT, &arg_matches, |_| cargo_fmt(false));
     try_subcmd(CARGO_UDEPS, &arg_matches, |_| cargo_udeps());
     try_subcmd(CARGO_EXPAND, &arg_matches, |args| {
-        shell(&format!(
-            "cargo expand --color=always --package '{}' | less -r",
-            args.value_of(ARG_PACKAGE).unwrap()
-        ))
+        let package = args.value_of(ARG_PACKAGE).unwrap();
+        duct::cmd("cargo", ["expand", "--color=always", "--package", package])
+            .pipe(duct::cmd("less", ["-r"]))
+            .run()?;
+        Ok(())
     });
 
     T::from_arg_matches(&arg_matches).unwrap_or_else(|e| e.exit())
@@ -201,57 +203,39 @@ pub fn generate_open_source_files(start_year: i32) -> WorkflowResult<()> {
     Ok(())
 }
 
-pub fn cargo_nightly(cmd: &str) -> WorkflowResult<()> {
-    shell(&format!("cargo +nightly {}", cmd))
-}
-
-pub fn cargo(cmd: &str) -> WorkflowResult<()> {
-    shell(&format!("cargo {}", cmd))
-}
-
 fn cargo_udeps() -> WorkflowResult<()> {
-    cargo_nightly("udeps --all-targets")
+    cmd!("cargo +nightly udeps --all-targets").run()?;
+    Ok(())
 }
 
-fn cargo_fmt() -> WorkflowResult<()> {
-    cargo_nightly("fmt --all")
+fn cargo_fmt(check: bool) -> WorkflowResult<()> {
+    let check = if check { &["--", "--check"] } else { &[][..] };
+    cmd!("cargo +nightly fmt --all {check...}").run()?;
+    Ok(())
 }
 
 pub fn ci_nightly() -> WorkflowResult<()> {
-    cargo_nightly("fmt --all -- --check")?;
+    cargo_fmt(true)?;
     cargo_udeps()
 }
 
 pub fn ci_fast() -> WorkflowResult<()> {
-    cargo("clippy --all-targets -- -D warnings -D clippy::all")?;
-    cargo("test")?;
-    cargo("build --all-targets")?;
-    cargo("doc")?;
+    cmd!("cargo clippy --all-targets -- -D warnings -D clippy::all").run()?;
+    cmd!("cargo test").run()?;
+    cmd!("cargo build --all-targets").run()?;
+    cmd!("cargo doc").run()?;
 
     Ok(())
 }
 
 pub fn ci_stable() -> WorkflowResult<()> {
     ci_fast()?;
-    cargo("test --benches --tests --release")
+    cmd!("cargo test --benches --tests --release").run()?;
+    Ok(())
 }
 
 pub fn ci() -> WorkflowResult<()> {
     ci_nightly()?;
     ci_stable()?;
-    Ok(())
-}
-
-pub fn shell(command: &str) -> WorkflowResult<()> {
-    let exit_status = execute::shell(command).status()?;
-
-    if !exit_status.success() {
-        if let Some(code) = exit_status.code() {
-            process::exit(code);
-        } else {
-            process::exit(1);
-        }
-    }
-
     Ok(())
 }
