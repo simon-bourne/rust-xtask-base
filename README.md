@@ -10,10 +10,12 @@ use xtask_base::{build_readme, ci, generate_open_source_files, run, CommonCmds, 
 
 #[derive(Parser)]
 enum Commands {
+    /// Generate derived files. Existing content will be overritten.
     Codegen {
         #[clap(long)]
         check: bool,
     },
+    /// Run CI checks
     Ci {
         #[clap(long)]
         fast: bool,
@@ -24,7 +26,7 @@ enum Commands {
 }
 
 fn main() {
-    run(|| {
+    run(|workspace| {
         match Commands::parse() {
             Commands::Codegen { check } => {
                 build_readme(".", check)?;
@@ -35,7 +37,7 @@ fn main() {
                 generate_open_source_files(2022, true)?;
                 ci(fast, toolchain)?;
             }
-            Commands::Common(cmds) => cmds.run::<Commands>()?,
+            Commands::Common(cmds) => cmds.run::<Commands>(workspace)?,
         }
 
         Ok(())
