@@ -1,17 +1,13 @@
-use std::{
-    env, error, fs,
-    path::Path,
-    process::{self, Output},
-    result,
-};
+use std::{env, error, fs, path::Path, process};
 
 use chrono::{Datelike, Utc};
 use clap::IntoApp;
 use clap_complete::Shell;
-use handlebars::{Handlebars, RenderError};
 use parse_display::{Display, FromStr};
 use serde_json::json;
 use xshell::{cmd, mkdir_p, pushd, read_file, write_file};
+
+mod template;
 
 pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 
@@ -44,74 +40,46 @@ impl CommonCmds {
     }
 }
 
-mod handlebars_helpers {
-    use std::fs;
-
-    use handlebars::handlebars_helper;
-
-    use crate::run_process;
-
-    handlebars_helper!(include: |file: str| { fs::read_to_string(file)? });
-    handlebars_helper!(shell: |cmd: str| { run_process(cmd)? });
+pub fn run(f: impl FnOnce() -> WorkflowResult<()>) {
+    run_or_err(f).unwrap_or_else(|e| {
+        eprintln!("{}", e);
+        process::exit(1);
+    });
 }
 
-fn run_process(cmd: &str) -> result::Result<String, RenderError> {
-    let mut shell_cmd = execute::shell(cmd);
+fn run_or_err(f: impl FnOnce() -> WorkflowResult<()>) -> WorkflowResult<()> {
+    // TODO: Use cargo metadata to get workspace root?
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR")?;
+    let _dir = pushd(
+        Path::new(&manifest_dir)
+            .ancestors()
+            .nth(2)
+            .ok_or(format!(
+                "Couldn't find workspace root from \"{}\"",
+                manifest_dir
+            ))?
+            .to_path_buf(),
+    );
 
-    let Output {
-        status,
-        stdout,
-        stderr,
-    } = shell_cmd.output()?;
-
-    let output = String::from_utf8(stdout)?;
-
-    if !stderr.is_empty() {
-        return Err(RenderError::new(format!(
-            "Stderr is not empty:\n\n{}",
-            String::from_utf8(stderr)?
-        )));
-    }
-
-    if !status.success() {
-        return Err(RenderError::new(status.code().map_or_else(
-            || "Process failed".to_owned(),
-            |code| format!("Process exited with code {}", code),
-        )));
-    }
-
-    Ok(output)
+    f()
 }
 
 pub fn build_readme(dir: &str, check: bool) -> WorkflowResult<()> {
-    let mut reg = Handlebars::new();
-    reg.set_strict_mode(true);
-    reg.register_helper("include", Box::new(handlebars_helpers::include));
-    reg.register_helper("shell", Box::new(handlebars_helpers::shell));
-
     let dir = Path::new(dir);
     let template = fs::read_to_string(dir.join("README.tmpl.md"))?;
 
     update_file(
         &dir.join("README.md"),
-        &reg.render_template(&template, &"{}")?,
+        &template::registry().render_template(&template, &"{}")?,
         check,
     )
 }
 
-// TODO: Rename WorkflowResult to XTaskResult?
-fn update_file(path: impl AsRef<Path>, contents: &str, check: bool) -> WorkflowResult<()> {
-    if check {
-        let existing_contents = read_file(path.as_ref())?;
-
-        if existing_contents != contents {
-            return Err(
-                format!("Differences found in file \"{}\"", path.as_ref().display()).into(),
-            );
-        }
-    } else {
-        write_file(path, contents)?;
-    }
+pub fn generate_open_source_files(start_year: i32, check: bool) -> WorkflowResult<()> {
+    generate_rustfmt_config(check)?;
+    generate_cargo_config(check)?;
+    generate_license_apache(start_year, check)?;
+    generate_license_mit(start_year, check)?;
 
     Ok(())
 }
@@ -164,9 +132,6 @@ fn generate_license(
     start_year: i32,
     check: bool,
 ) -> WorkflowResult<()> {
-    let mut reg = Handlebars::new();
-    reg.set_strict_mode(true);
-
     let end_year = Utc::now().year();
 
     let copyright_range = if start_year == end_year {
@@ -177,39 +142,34 @@ fn generate_license(
 
     update_file(
         filename,
-        &reg.render_template(template, &json!({ "copyright_range": copyright_range }))?,
+        &template::registry()
+            .render_template(template, &json!({ "copyright_range": copyright_range }))?,
         check,
     )
 }
 
-pub fn generate_open_source_files(start_year: i32, check: bool) -> WorkflowResult<()> {
-    generate_rustfmt_config(check)?;
-    generate_cargo_config(check)?;
-    generate_license_apache(start_year, check)?;
-    generate_license_mit(start_year, check)?;
+fn update_file(path: impl AsRef<Path>, contents: &str, check: bool) -> WorkflowResult<()> {
+    if check {
+        let existing_contents = read_file(path.as_ref())?;
 
-    Ok(())
-}
+        if existing_contents != contents {
+            return Err(
+                format!("Differences found in file \"{}\"", path.as_ref().display()).into(),
+            );
+        }
+    } else {
+        write_file(path, contents)?;
+    }
 
-fn cargo_udeps() -> WorkflowResult<()> {
-    cmd!("cargo +nightly udeps --all-targets").run()?;
-    Ok(())
-}
-
-fn cargo_fmt(check: bool) -> WorkflowResult<()> {
-    let check = if check { &["--", "--check"] } else { &[][..] };
-    cmd!("cargo +nightly fmt --all {check...}").run()?;
     Ok(())
 }
 
 #[derive(Display, FromStr, Debug, Eq, PartialEq, Copy, Clone)]
-#[display(style = "snake_case")]
+#[display(style = "kebab-case")]
 pub enum Toolchain {
     Stable,
     Nightly,
 }
-
-// TODO: Run macro, for cmd!(...).run()? and re-export duct::cmd
 
 pub fn ci(fast: bool, toolchain: Option<Toolchain>) -> WorkflowResult<()> {
     if toolchain.map_or(true, |tc| tc == Toolchain::Nightly) {
@@ -228,5 +188,16 @@ pub fn ci(fast: bool, toolchain: Option<Toolchain>) -> WorkflowResult<()> {
         }
     }
 
+    Ok(())
+}
+
+fn cargo_udeps() -> WorkflowResult<()> {
+    cmd!("cargo +nightly udeps --all-targets").run()?;
+    Ok(())
+}
+
+fn cargo_fmt(check: bool) -> WorkflowResult<()> {
+    let check = if check { &["--", "--check"] } else { &[][..] };
+    cmd!("cargo +nightly fmt --all {check...}").run()?;
     Ok(())
 }
