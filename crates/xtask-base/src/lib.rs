@@ -19,23 +19,27 @@ pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 // TODO: Use "CARGO" env to get cargo binary
 
 pub fn run(f: impl FnOnce() -> WorkflowResult<()>) {
+    run_or_err(f).unwrap_or_else(|e| {
+        eprintln!("{}", e);
+        process::exit(1);
+    });
+}
+
+fn run_or_err(f: impl FnOnce() -> WorkflowResult<()>) -> WorkflowResult<()> {
     // TODO: Use cargo metadata to get workspace root?
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR")?;
     let _dir = pushd(
-        Path::new(&env!("CARGO_MANIFEST_DIR"))
+        Path::new(&manifest_dir)
             .ancestors()
             .nth(2)
-            .unwrap()
+            .ok_or(format!(
+                "Couldn't find workspace root from \"{}\"",
+                manifest_dir
+            ))?
             .to_path_buf(),
-    )
-    .unwrap_or_else(|e| {
-        eprintln!("{}", e);
-        process::exit(1);
-    });
+    );
 
-    f().unwrap_or_else(|e| {
-        eprintln!("{}", e);
-        process::exit(1);
-    });
+    f()
 }
 
 #[derive(clap::Parser)]
