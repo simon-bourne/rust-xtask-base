@@ -17,6 +17,19 @@ use xshell::cmd;
 
 pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 
+// TODO: Rename repo to xtask-base
+// TODO: Add .cargo/config with the alias for xtask
+// TODO: Remove workflow and bash-completions scripts
+//
+// TODO: Use clap::flatten to optionally add support for command line stuff
+// TODO: cd to cargo dir (CARGO_MANIFEST_DIR)
+// TODO: Use "CARGO" env to get cargo binary
+// TODO: run via cargo xtask
+// TODO: Generate completions to target/...
+// TODO: Add an alias/completion to complete from target/completions
+// TODO: Add an alias to generate completions
+// TODO: Run only needs to take an error and exit (call it catch)?
+
 pub fn run(f: impl FnOnce() -> WorkflowResult<()>) {
     f().unwrap_or_else(|e| {
         eprintln!("{}", e);
