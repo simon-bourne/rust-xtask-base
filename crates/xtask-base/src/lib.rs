@@ -85,7 +85,7 @@ fn run_or_err(f: impl FnOnce(&Workspace) -> WorkflowResult<()>) -> WorkflowResul
 /// Build `README.md` from `README.tmpl.md`
 ///
 /// The template is a Handlebars template with helpers:
-/// 
+///
 /// - `{{ include "my-file.txt" }}` will include the contents of `my-file.txt`
 /// - `{{ shell "ls -l" }}` will run `ls -l` and include the contents of it's
 ///   `stdout`. The system shell is used to run the command.
@@ -103,7 +103,7 @@ pub fn build_readme(dir: &str, check: bool) -> WorkflowResult<()> {
 /// Generate Rustfmt and Cargo configs, and dual Apache 2 and MIT licenses
 ///
 /// The follwing files are generated in the workspace root:
-/// 
+///
 /// - `rustmt.toml`
 /// - `.cargo/config`
 /// - `LICENSE-APACHE`
