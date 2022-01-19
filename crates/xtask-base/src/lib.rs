@@ -15,17 +15,17 @@ pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 #[derive(clap::Parser)]
 pub enum CommonCmds {
     /// Generate shell completions
-    ShellCompletion {
-        shell: Shell,
-    },
+    ShellCompletion { shell: Shell },
+    /// Format all code
     Fmt,
+    /// Check all dependencies are used
     Udeps,
-    MacroExpand {
-        package: String,
-    },
+    /// Show expanded macros
+    MacroExpand { package: String },
 }
 
 impl CommonCmds {
+    /// Run the subcommand for `self`
     pub fn run<T: IntoApp>(&self, workspace: &Workspace) -> WorkflowResult<()> {
         match self {
             CommonCmds::ShellCompletion { shell } => {
@@ -51,14 +51,22 @@ impl CommonCmds {
     }
 }
 
+/// Metadata about the cargo workspace
 pub struct Workspace(Metadata);
 
 impl Workspace {
+    /// The cargo target directory
+    ///
+    /// This is where all generated files go.
     pub fn target_dir(&self) -> &Path {
         self.0.target_directory.as_std_path()
     }
 }
 
+/// Run a function, passing it a [Workspace]
+///
+/// If an error is returned, a human friendly version is output, and the process
+/// exits with code 1
 pub fn run(f: impl FnOnce(&Workspace) -> WorkflowResult<()>) {
     run_or_err(f).unwrap_or_else(|e| {
         eprintln!("{}", e);
@@ -74,6 +82,13 @@ fn run_or_err(f: impl FnOnce(&Workspace) -> WorkflowResult<()>) -> WorkflowResul
     f(&Workspace(metadata))
 }
 
+/// Build `README.md` from `README.tmpl.md`
+///
+/// The template is a Handlebars template with helpers:
+/// 
+/// - `{{ include "my-file.txt" }}` will include the contents of `my-file.txt`
+/// - `{{ shell "ls -l" }}` will run `ls -l` and include the contents of it's
+///   `stdout`. The system shell is used to run the command.
 pub fn build_readme(dir: &str, check: bool) -> WorkflowResult<()> {
     let dir = Path::new(dir);
     let template = fs::read_to_string(dir.join("README.tmpl.md"))?;
@@ -85,6 +100,14 @@ pub fn build_readme(dir: &str, check: bool) -> WorkflowResult<()> {
     )
 }
 
+/// Generate Rustfmt and Cargo configs, and dual Apache 2 and MIT licenses
+///
+/// The follwing files are generated in the workspace root:
+/// 
+/// - `rustmt.toml`
+/// - `.cargo/config`
+/// - `LICENSE-APACHE`
+/// - `LICENSE-MIT`
 pub fn generate_open_source_files(start_year: i32, check: bool) -> WorkflowResult<()> {
     generate_rustfmt_config(check)?;
     generate_cargo_config(check)?;
@@ -94,6 +117,7 @@ pub fn generate_open_source_files(start_year: i32, check: bool) -> WorkflowResul
     Ok(())
 }
 
+/// Generate `rustfmt.toml` in the workspace root
 pub fn generate_rustfmt_config(check: bool) -> WorkflowResult<()> {
     update_file(
         "rustfmt.toml",
@@ -104,6 +128,9 @@ pub fn generate_rustfmt_config(check: bool) -> WorkflowResult<()> {
     Ok(())
 }
 
+/// Generate `.cargo/config` in the workspace root
+///
+/// It contains a single alias for `xtask`
 pub fn generate_cargo_config(check: bool) -> WorkflowResult<()> {
     if !check {
         mkdir_p(".cargo")?;
@@ -181,6 +208,17 @@ pub enum Toolchain {
     Nightly,
 }
 
+/// Run basic CI checks
+///
+/// Nightly:
+///
+/// - `cargo fmt`
+/// - `cargo udeps`
+///
+/// Stable:
+///
+/// - `cargo [clippy, test, build, doc]`
+/// - `cargo test --benches --tests --release`, except in when `fast` is `true`
 pub fn ci(fast: bool, toolchain: Option<Toolchain>) -> WorkflowResult<()> {
     if toolchain.map_or(true, |tc| tc == Toolchain::Nightly) {
         cargo_fmt(true)?;
