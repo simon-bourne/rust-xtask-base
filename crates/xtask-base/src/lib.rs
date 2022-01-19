@@ -1,7 +1,6 @@
 use std::{
-    error,
+    env, error,
     fs::{self, File},
-    io,
     path::Path,
     process::{self, Output},
     result,
@@ -12,19 +11,27 @@ use clap::IntoApp;
 use clap_complete::Shell;
 use handlebars::{Handlebars, RenderError};
 use serde_json::json;
-use xshell::{cmd, mkdir_p, write_file};
+use xshell::{cmd, mkdir_p, pushd, write_file};
 
 pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 
 // TODO: Update README
-// TODO: Generate completions to target/...
-// TODO: Add an alias/completion to complete from target/completions
-// TODO: Add an alias to generate completions
-// TODO: run via cargo xtask
-// TODO: cd to cargo dir (CARGO_MANIFEST_DIR)
 // TODO: Use "CARGO" env to get cargo binary
 
 pub fn run(f: impl FnOnce() -> WorkflowResult<()>) {
+    // TODO: Use cargo metadata to get workspace root?
+    let _dir = pushd(
+        Path::new(&env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .unwrap()
+            .to_path_buf(),
+    )
+    .unwrap_or_else(|e| {
+        eprintln!("{}", e);
+        process::exit(1);
+    });
+
     f().unwrap_or_else(|e| {
         eprintln!("{}", e);
         process::exit(1);
@@ -43,12 +50,8 @@ impl CommonCmds {
     pub fn run<T: IntoApp>(&self) -> WorkflowResult<()> {
         match self {
             CommonCmds::ShellCompletion { shell } => {
-                clap_complete::generate(
-                    *shell,
-                    &mut T::into_app(),
-                    "./cargo-xtask",
-                    &mut io::stdout(),
-                );
+                clap_complete::generate_to(*shell, &mut T::into_app(), "./cargo-xtask", "target")?;
+                println!("Completions file generated in `target` dir");
                 Ok(())
             }
             CommonCmds::Fmt => cargo_fmt(false),
