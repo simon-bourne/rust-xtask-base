@@ -1,17 +1,16 @@
 use clap::Parser;
-use xtask_base::{
-    build_readme, ci, ci_fast, ci_nightly, ci_stable, generate_open_source_files, run, CommonCmds,
-};
+use xtask_base::{build_readme, ci, generate_open_source_files, run, CommonCmds, Toolchain};
 
 #[derive(Parser)]
 enum Commands {
     UpdateFiles,
-    CiNightly,
-    CiFast,
-    CiStable,
-    Ci,
+    Ci {
+        #[clap(long)]
+        fast: bool,
+        toolchain: Option<Toolchain>,
+    },
     #[clap(flatten)]
-    Common(CommonCmds)
+    Common(CommonCmds),
 }
 
 fn main() {
@@ -21,11 +20,8 @@ fn main() {
                 build_readme(".")?;
                 generate_open_source_files(2022)?;
             }
-            Commands::CiNightly => ci_nightly()?,
-            Commands::CiFast => ci_fast()?,
-            Commands::CiStable => ci_stable()?,
-            Commands::Ci => ci()?,
-            Commands::Common(cmds) => cmds.run::<Commands>()?
+            Commands::Ci { fast, toolchain } => ci(fast, toolchain)?,
+            Commands::Common(cmds) => cmds.run::<Commands>()?,
         }
 
         Ok(())

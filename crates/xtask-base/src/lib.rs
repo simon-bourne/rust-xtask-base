@@ -10,6 +10,7 @@ use chrono::{Datelike, Utc};
 use clap::IntoApp;
 use clap_complete::Shell;
 use handlebars::{Handlebars, RenderError};
+use parse_display::{Display, FromStr};
 use serde_json::json;
 use xshell::{cmd, mkdir_p, pushd, write_file};
 
@@ -189,28 +190,31 @@ fn cargo_fmt(check: bool) -> WorkflowResult<()> {
     Ok(())
 }
 
-pub fn ci_nightly() -> WorkflowResult<()> {
-    cargo_fmt(true)?;
-    cargo_udeps()
+#[derive(Display, FromStr, Debug, Eq, PartialEq, Copy, Clone)]
+#[display(style = "snake_case")]
+pub enum Toolchain {
+    Stable,
+    Nightly,
 }
 
-pub fn ci_fast() -> WorkflowResult<()> {
-    cmd!("cargo clippy --all-targets -- -D warnings -D clippy::all").run()?;
-    cmd!("cargo test").run()?;
-    cmd!("cargo build --all-targets").run()?;
-    cmd!("cargo doc").run()?;
+// TODO: Run macro, for cmd!(...).run()? and re-export duct::cmd
 
-    Ok(())
-}
+pub fn ci(fast: bool, toolchain: Option<Toolchain>) -> WorkflowResult<()> {
+    if toolchain.map_or(true, |tc| tc == Toolchain::Nightly) {
+        cargo_fmt(true)?;
+        cargo_udeps()?;
+    }
 
-pub fn ci_stable() -> WorkflowResult<()> {
-    ci_fast()?;
-    cmd!("cargo test --benches --tests --release").run()?;
-    Ok(())
-}
+    if toolchain.map_or(true, |tc| tc == Toolchain::Stable) {
+        cmd!("cargo clippy --all-targets -- -D warnings -D clippy::all").run()?;
+        cmd!("cargo test").run()?;
+        cmd!("cargo build --all-targets").run()?;
+        cmd!("cargo doc").run()?;
 
-pub fn ci() -> WorkflowResult<()> {
-    ci_nightly()?;
-    ci_stable()?;
+        if !fast {
+            cmd!("cargo test --benches --tests --release").run()?;
+        }
+    }
+
     Ok(())
 }
