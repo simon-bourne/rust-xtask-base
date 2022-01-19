@@ -8,7 +8,7 @@ use std::{
 };
 
 use chrono::{Datelike, Utc};
-use clap::{ArgMatches, IntoApp};
+use clap::IntoApp;
 use clap_complete::Shell;
 use handlebars::{Handlebars, RenderError};
 use serde_json::json;
@@ -17,7 +17,6 @@ use xshell::{cmd, mkdir_p, write_file};
 pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 
 // TODO: Update README
-// TODO: Add .cargo/config with the alias for xtask
 // TODO: Generate completions to target/...
 // TODO: Add an alias/completion to complete from target/completions
 // TODO: Add an alias to generate completions
@@ -60,19 +59,6 @@ impl CommonCmds {
                     .run()?;
                 Ok(())
             }
-        }
-    }
-}
-
-pub fn try_subcmd(
-    name: &str,
-    arg_matches: &ArgMatches,
-    f: impl FnOnce(&ArgMatches) -> WorkflowResult<()>,
-) {
-    if let Some((subcmd, args)) = arg_matches.subcommand() {
-        if name == subcmd {
-            run(|| f(args));
-            process::exit(0);
         }
     }
 }
