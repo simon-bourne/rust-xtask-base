@@ -6,7 +6,7 @@ Utilities for creating [cargo-xtask](https://github.com/matklad/cargo-xtask) pro
 
 ```rust
 use clap::Parser;
-use xtask_base::{build_readme, ci, generate_open_source_files, run, CommonCmds, Toolchain};
+use xtask_base::{build_readme, ci, generate_open_source_files, run, CommonCmds};
 
 #[derive(Parser)]
 enum Commands {
@@ -19,7 +19,7 @@ enum Commands {
     Ci {
         #[clap(long)]
         fast: bool,
-        toolchain: Option<Toolchain>,
+        toolchain: Option<String>,
     },
     #[clap(flatten)]
     Common(CommonCmds),

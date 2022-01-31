@@ -4,7 +4,6 @@ use cargo_metadata::{Metadata, MetadataCommand};
 use chrono::{Datelike, Utc};
 use clap::IntoApp;
 use clap_complete::Shell;
-use parse_display::{Display, FromStr};
 use serde_json::json;
 use xshell::{cmd, mkdir_p, pushd, read_file, write_file};
 
@@ -39,8 +38,8 @@ impl CommonCmds {
                 println!("Completions file generated in `{}`", target_dir.display());
                 Ok(())
             }
-            CommonCmds::Fmt => cargo_fmt(false),
-            CommonCmds::Udeps => cargo_udeps(),
+            CommonCmds::Fmt => cargo_fmt(Some("+nightly"), false),
+            CommonCmds::Udeps => cargo_udeps(Some("+nightly")),
             CommonCmds::MacroExpand { package } => {
                 duct::cmd("cargo", ["expand", "--color=always", "--package", package])
                     .pipe(duct::cmd("less", ["-r"]))
@@ -201,13 +200,6 @@ fn update_file(path: impl AsRef<Path>, contents: &str, check: bool) -> WorkflowR
     Ok(())
 }
 
-#[derive(Display, FromStr, Debug, Eq, PartialEq, Copy, Clone)]
-#[display(style = "kebab-case")]
-pub enum Toolchain {
-    Stable,
-    Nightly,
-}
-
 /// Run basic CI checks
 ///
 /// Nightly:
@@ -219,33 +211,37 @@ pub enum Toolchain {
 ///
 /// - `cargo [clippy, test, build, doc]`
 /// - `cargo test --benches --tests --release`, except in when `fast` is `true`
-pub fn ci(fast: bool, toolchain: Option<Toolchain>) -> WorkflowResult<()> {
-    if toolchain.map_or(true, |tc| tc == Toolchain::Nightly) {
-        cargo_fmt(true)?;
-        cargo_udeps()?;
+pub fn ci(fast: bool, toolchain: Option<String>) -> WorkflowResult<()> {
+    let toolchain = toolchain.map(|tc| format!("+{}", tc));
+    let toolchain = toolchain.as_deref();
+
+    if toolchain.map_or(true, |tc| tc.starts_with("+nightly")) {
+        let toolchain = toolchain.or(Some("+nightly"));
+        cargo_fmt(toolchain, true)?;
+        cargo_udeps(toolchain)?;
     }
 
-    if toolchain.map_or(true, |tc| tc == Toolchain::Stable) {
-        cmd!("cargo clippy --all-targets -- -D warnings -D clippy::all").run()?;
-        cmd!("cargo test").run()?;
-        cmd!("cargo build --all-targets").run()?;
-        cmd!("cargo doc").run()?;
+    if toolchain.map_or(true, |tc| tc.starts_with("+stable")) {
+        cmd!("cargo {toolchain...} clippy --all-targets -- -D warnings -D clippy::all").run()?;
+        cmd!("cargo {toolchain...} test").run()?;
+        cmd!("cargo {toolchain...} build --all-targets").run()?;
+        cmd!("cargo {toolchain...} doc").run()?;
 
         if !fast {
-            cmd!("cargo test --benches --tests --release").run()?;
+            cmd!("cargo {toolchain...} test --benches --tests --release").run()?;
         }
     }
 
     Ok(())
 }
 
-fn cargo_udeps() -> WorkflowResult<()> {
-    cmd!("cargo +nightly udeps --all-targets").run()?;
+fn cargo_udeps(toolchain: Option<&str>) -> WorkflowResult<()> {
+    cmd!("cargo {toolchain...} udeps --all-targets").run()?;
     Ok(())
 }
 
-fn cargo_fmt(check: bool) -> WorkflowResult<()> {
+fn cargo_fmt(toolchain: Option<&str>, check: bool) -> WorkflowResult<()> {
     let check = if check { &["--", "--check"] } else { &[][..] };
-    cmd!("cargo +nightly fmt --all {check...}").run()?;
+    cmd!("cargo {toolchain...} fmt --all {check...}").run()?;
     Ok(())
 }
