@@ -235,6 +235,40 @@ pub fn ci(fast: bool, toolchain: &Option<String>) -> WorkflowResult<()> {
     Ok(())
 }
 
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum TargetOs {
+    Windows,
+    MacOs,
+    Ios,
+    Linux,
+    Android,
+    FreeBsd,
+    Dragonfly,
+    OpenBsd,
+    NetBsd,
+}
+
+pub fn target_os() -> TargetOs {
+    #[cfg(target_os = "windows")]
+    return TargetOs::Windows;
+    #[cfg(target_os = "macos")]
+    return TargetOs::MacOs;
+    #[cfg(target_os = "ios")]
+    return TargetOs::Ios;
+    #[cfg(target_os = "linux")]
+    return TargetOs::Linux;
+    #[cfg(target_os = "android")]
+    return TargetOs::Android;
+    #[cfg(target_os = "freebsd")]
+    return TargetOs::FreeBsd;
+    #[cfg(target_os = "dragonfly")]
+    return TargetOs::Dragonfly;
+    #[cfg(target_os = "openbsd")]
+    return TargetOs::OpenBsd;
+    #[cfg(target_os = "netbsd")]
+    return TargetOs::NetBsd;
+}
+
 fn cargo_udeps(toolchain: Option<&str>) -> WorkflowResult<()> {
     cmd!("cargo {toolchain...} udeps --all-targets").run()?;
     Ok(())
