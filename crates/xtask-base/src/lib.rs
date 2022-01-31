@@ -211,8 +211,8 @@ fn update_file(path: impl AsRef<Path>, contents: &str, check: bool) -> WorkflowR
 ///
 /// - `cargo [clippy, test, build, doc]`
 /// - `cargo test --benches --tests --release`, except in when `fast` is `true`
-pub fn ci(fast: bool, toolchain: Option<String>) -> WorkflowResult<()> {
-    let toolchain = toolchain.map(|tc| format!("+{}", tc));
+pub fn ci(fast: bool, toolchain: &Option<String>) -> WorkflowResult<()> {
+    let toolchain = toolchain.as_ref().map(|tc| format!("+{}", tc));
     let toolchain = toolchain.as_deref();
 
     if toolchain.map_or(true, |tc| tc.starts_with("+nightly")) {

@@ -35,7 +35,7 @@ fn main() {
             Commands::Ci { fast, toolchain } => {
                 build_readme(".", true)?;
                 generate_open_source_files(2022, true)?;
-                ci(fast, toolchain)?;
+                ci(fast, &toolchain)?;
             }
             Commands::Common(cmds) => cmds.run::<Commands>(workspace)?,
         }
