@@ -45,5 +45,4 @@ jobs:
     - uses: actions-rs/install@v0.1
       with:
         crate: cargo-udeps
-    - run: cargo fmt --all -- --check
-    - run: cargo udeps --all-targets
+    - run: cargo xtask ci nightly ${{ matrix.rust }}

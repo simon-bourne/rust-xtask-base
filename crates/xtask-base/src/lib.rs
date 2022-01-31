@@ -200,37 +200,35 @@ fn update_file(path: impl AsRef<Path>, contents: &str, check: bool) -> WorkflowR
     Ok(())
 }
 
-/// Run basic CI checks
-///
-/// Nightly:
-///
-/// - `cargo fmt`
-/// - `cargo udeps`
-///
-/// Stable:
+/// Run basic CI checks on stable toolchain
 ///
 /// - `cargo [clippy, test, build, doc]`
 /// - `cargo test --benches --tests --release`, except in when `fast` is `true`
-pub fn ci(fast: bool, toolchain: Option<impl AsRef<str>>) -> WorkflowResult<()> {
-    let toolchain = toolchain.as_ref().map(|tc| format!("+{}", tc.as_ref()));
+pub fn ci_stable(fast: bool, toolchain: Option<&str>) -> WorkflowResult<()> {
+    let toolchain = toolchain.as_ref().map(|tc| format!("+{}", tc));
     let toolchain = toolchain.as_deref();
 
-    if toolchain.map_or(true, |tc| tc.starts_with("+nightly")) {
-        let toolchain = toolchain.or(Some("+nightly"));
-        cargo_fmt(toolchain, true)?;
-        cargo_udeps(toolchain)?;
+    cmd!("cargo {toolchain...} clippy --all-targets -- -D warnings -D clippy::all").run()?;
+    cmd!("cargo {toolchain...} test").run()?;
+    cmd!("cargo {toolchain...} build --all-targets").run()?;
+    cmd!("cargo {toolchain...} doc").run()?;
+
+    if !fast {
+        cmd!("cargo {toolchain...} test --benches --tests --release").run()?;
     }
 
-    if toolchain.map_or(true, |tc| tc.starts_with("+stable")) {
-        cmd!("cargo {toolchain...} clippy --all-targets -- -D warnings -D clippy::all").run()?;
-        cmd!("cargo {toolchain...} test").run()?;
-        cmd!("cargo {toolchain...} build --all-targets").run()?;
-        cmd!("cargo {toolchain...} doc").run()?;
+    Ok(())
+}
 
-        if !fast {
-            cmd!("cargo {toolchain...} test --benches --tests --release").run()?;
-        }
-    }
+/// Nightly only CI checks:
+///
+/// - `cargo fmt`
+/// - `cargo udeps`
+pub fn ci_nightly(toolchain: Option<&str>) -> WorkflowResult<()> {
+    let toolchain = toolchain.as_ref().map(|tc| format!("+{}", tc));
+    let toolchain = toolchain.as_deref();
+    cargo_fmt(toolchain, true)?;
+    cargo_udeps(toolchain)?;
 
     Ok(())
 }
