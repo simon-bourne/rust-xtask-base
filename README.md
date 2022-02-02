@@ -49,7 +49,7 @@ fn main() {
                 if let Some(command) = command {
                     match command {
                         CiCommand::Stable { fast, toolchain } => {
-                            ci_stable(fast, toolchain)?;
+                            ci_stable(fast, toolchain.as_deref())?;
                         }
                         CiCommand::Nightly { toolchain } => ci_nightly(toolchain.as_deref())?,
                     }
@@ -65,10 +65,10 @@ fn main() {
     });
 }
 
-fn ci_stable(fast: bool, toolchain: Option<String>) -> WorkflowResult<()> {
+fn ci_stable(fast: bool, toolchain: Option<&str>) -> WorkflowResult<()> {
     build_readme(".", true)?;
     generate_open_source_files(2022, true)?;
-    xtask_base::ci_stable(fast, toolchain.as_deref(), &[])?;
+    xtask_base::ci_stable(fast, toolchain, &[])?;
     Ok(())
 }
 

@@ -206,24 +206,36 @@ fn update_file(path: impl AsRef<Path>, contents: &str, check: bool) -> WorkflowR
 /// - `cargo [clippy, test, build, doc]`
 /// - `cargo test --benches --tests --release`, except in when `fast` is `true`
 pub fn ci_stable(fast: bool, toolchain: Option<&str>, features: &[&str]) -> WorkflowResult<()> {
-    let toolchain = toolchain.as_ref().map(|tc| format!("+{}", tc));
-    let toolchain = toolchain.as_deref();
+    let cargo_toolchain = &cargo_toolchain(toolchain);
 
     for feature_set in features.iter().copied().powerset() {
+        clippy(toolchain, &feature_set)?;
+
         let feature_set = feature_set.join(",");
 
-        cmd!("cargo {toolchain...} clippy --features {feature_set} --all-targets -- -D warnings -D clippy::all").run()?;
-        cmd!("cargo {toolchain...} test --features {feature_set}").run()?;
-        cmd!("cargo {toolchain...} build --all-targets --features {feature_set}").run()?;
-        cmd!("cargo {toolchain...} doc --features {feature_set}").run()?;
+        cmd!("cargo {cargo_toolchain...} test --features {feature_set}").run()?;
+        cmd!("cargo {cargo_toolchain...} build --all-targets --features {feature_set}").run()?;
+        cmd!("cargo {cargo_toolchain...} doc --features {feature_set}").run()?;
 
         if !fast {
-            cmd!("cargo {toolchain...} test --benches --tests --release --features {feature_set}")
+            cmd!("cargo {cargo_toolchain...} test --benches --tests --release --features {feature_set}")
                 .run()?;
         }
     }
 
     Ok(())
+}
+
+pub fn clippy(toolchain: Option<&str>, features: &[&str]) -> WorkflowResult<()> {
+    let toolchain = cargo_toolchain(toolchain);
+    let feature_set = features.join(",");
+
+    cmd!("cargo {toolchain...} clippy --features {feature_set} --all-targets -- -D warnings -D clippy::all").run()?;
+    Ok(())
+}
+
+fn cargo_toolchain(toolchain: Option<&str>) -> Option<String> {
+    toolchain.as_ref().map(|tc| format!("+{}", tc))
 }
 
 /// Nightly only CI checks:
