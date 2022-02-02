@@ -4,6 +4,7 @@ use cargo_metadata::{Metadata, MetadataCommand};
 use chrono::{Datelike, Utc};
 use clap::IntoApp;
 use clap_complete::Shell;
+use itertools::Itertools;
 use serde_json::json;
 use xshell::{cmd, mkdir_p, pushd, read_file, write_file};
 
@@ -204,17 +205,22 @@ fn update_file(path: impl AsRef<Path>, contents: &str, check: bool) -> WorkflowR
 ///
 /// - `cargo [clippy, test, build, doc]`
 /// - `cargo test --benches --tests --release`, except in when `fast` is `true`
-pub fn ci_stable(fast: bool, toolchain: Option<&str>) -> WorkflowResult<()> {
+pub fn ci_stable(fast: bool, toolchain: Option<&str>, features: &[&str]) -> WorkflowResult<()> {
     let toolchain = toolchain.as_ref().map(|tc| format!("+{}", tc));
     let toolchain = toolchain.as_deref();
 
-    cmd!("cargo {toolchain...} clippy --all-targets -- -D warnings -D clippy::all").run()?;
-    cmd!("cargo {toolchain...} test").run()?;
-    cmd!("cargo {toolchain...} build --all-targets").run()?;
-    cmd!("cargo {toolchain...} doc").run()?;
+    for feature_set in features.iter().copied().powerset() {
+        let feature_set = feature_set.join(",");
 
-    if !fast {
-        cmd!("cargo {toolchain...} test --benches --tests --release").run()?;
+        cmd!("cargo {toolchain...} clippy --features {feature_set} --all-targets -- -D warnings -D clippy::all").run()?;
+        cmd!("cargo {toolchain...} test --features {feature_set}").run()?;
+        cmd!("cargo {toolchain...} build --all-targets --features {feature_set}").run()?;
+        cmd!("cargo {toolchain...} doc --features {feature_set}").run()?;
+
+        if !fast {
+            cmd!("cargo {toolchain...} test --benches --tests --release --features {feature_set}")
+                .run()?;
+        }
     }
 
     Ok(())

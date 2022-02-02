@@ -61,6 +61,6 @@ fn main() {
 fn ci_stable(fast: bool, toolchain: Option<String>) -> WorkflowResult<()> {
     build_readme(".", true)?;
     generate_open_source_files(2022, true)?;
-    xtask_base::ci_stable(fast, toolchain.as_deref())?;
+    xtask_base::ci_stable(fast, toolchain.as_deref(), &[])?;
     Ok(())
 }
