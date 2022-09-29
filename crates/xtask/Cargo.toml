@@ -4,5 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-clap = "3.0.9"
+clap = { version = "4.0", features = ["derive"] }
 xtask-base = { path = "../xtask-base" }

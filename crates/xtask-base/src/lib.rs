@@ -2,7 +2,7 @@ use std::{error, fs, path::Path, process};
 
 use cargo_metadata::{Metadata, MetadataCommand};
 use chrono::{Datelike, Utc};
-use clap::IntoApp;
+use clap::CommandFactory;
 use clap_complete::Shell;
 use itertools::Itertools;
 use serde_json::json;
@@ -26,13 +26,13 @@ pub enum CommonCmds {
 
 impl CommonCmds {
     /// Run the subcommand for `self`
-    pub fn run<T: IntoApp>(&self, workspace: &Workspace) -> WorkflowResult<()> {
+    pub fn run<T: CommandFactory>(&self, workspace: &Workspace) -> WorkflowResult<()> {
         match self {
             CommonCmds::ShellCompletion { shell } => {
                 let target_dir = workspace.target_dir();
                 clap_complete::generate_to(
                     *shell,
-                    &mut T::into_app(),
+                    &mut T::command(),
                     "./cargo-xtask",
                     target_dir,
                 )?;
@@ -251,7 +251,7 @@ pub fn ci_nightly(toolchain: Option<&str>) -> WorkflowResult<()> {
     Ok(())
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum TargetOs {
     Windows,
     MacOs,

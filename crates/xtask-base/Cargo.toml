@@ -6,8 +6,8 @@ edition = "2021"
 [dependencies]
 cargo_metadata = "0.14.1"
 chrono = "0.4.19"
-clap = { version = "*", features = ["derive"] }
-clap_complete = "3.0.4"
+clap = { version = "4.0", features = ["derive"] }
+clap_complete = "4.0"
 duct = "0.13.5"
 execute = "0.2.9"
 handlebars = "4.2.1"
