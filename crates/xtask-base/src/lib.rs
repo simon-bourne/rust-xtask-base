@@ -94,7 +94,7 @@ pub fn build_readme(dir: &str, check: bool) -> WorkflowResult<()> {
     let template = fs::read_to_string(dir.join("README.tmpl.md"))?;
 
     update_file(
-        &dir.join("README.md"),
+        dir.join("README.md"),
         &template::registry().render_template(&template, &"{}")?,
         check,
     )
