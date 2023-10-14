@@ -30,12 +30,7 @@ impl CommonCmds {
         match self {
             CommonCmds::ShellCompletion { shell } => {
                 let target_dir = workspace.target_dir();
-                clap_complete::generate_to(
-                    *shell,
-                    &mut T::command(),
-                    "./cargo-xtask",
-                    target_dir,
-                )?;
+                clap_complete::generate_to(*shell, &mut T::command(), "./cargo-xtask", target_dir)?;
                 println!("Completions file generated in `{}`", target_dir.display());
                 Ok(())
             }
