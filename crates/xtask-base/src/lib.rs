@@ -182,9 +182,10 @@ fn generate_license(
 
 fn update_file(path: impl AsRef<Path>, contents: &str, check: bool) -> WorkflowResult<()> {
     if check {
-        let existing_contents = read_file(path.as_ref())?;
+        // Ignore windows line endings
+        let existing_contents = read_file(path.as_ref())?.lines().join("\n");
 
-        if existing_contents != contents {
+        if existing_contents != contents.lines().join("\n") {
             return Err(
                 format!("Differences found in file \"{}\"", path.as_ref().display()).into(),
             );
