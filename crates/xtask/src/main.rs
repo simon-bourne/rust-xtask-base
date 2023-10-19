@@ -35,11 +35,7 @@ enum CiCommand {
 fn main() {
     run(|workspace| {
         match Commands::parse() {
-            Commands::Codegen { check } => {
-                build_readme(".", check)?;
-                generate_open_source_files(2022, check)?;
-                github_actions(check)?;
-            }
+            Commands::Codegen { check } => code_gen(check)?,
             Commands::Ci { command } => {
                 if let Some(command) = command {
                     match command {
@@ -60,13 +56,18 @@ fn main() {
     });
 }
 
+fn code_gen(check: bool) -> WorkflowResult<()> {
+    build_readme(".", check)?;
+    generate_open_source_files(2022, check)?;
+    github_actions(check)
+}
+
 fn github_actions(check: bool) -> WorkflowResult<()> {
     workflows::basic_tests("1.73", "nightly-2023-10-14", "0.1.40").write(check)
 }
 
 fn ci_stable(fast: bool, toolchain: Option<&str>) -> WorkflowResult<()> {
-    build_readme(".", true)?;
-    generate_open_source_files(2022, true)?;
+    code_gen(true)?;
     xtask_base::ci_stable(fast, toolchain, &[])?;
     Ok(())
 }
