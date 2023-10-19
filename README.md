@@ -70,7 +70,7 @@ fn code_gen(check: bool) -> WorkflowResult<()> {
 }
 
 fn github_actions(check: bool) -> WorkflowResult<()> {
-    workflows::basic_tests("1.73", "nightly-2023-10-14", "0.1.40").write(check)
+    workflows::basic_tests("1.73", "nightly-2023-10-14", "0.1.43").write(check)
 }
 
 fn ci_stable(fast: bool, toolchain: Option<&str>) -> WorkflowResult<()> {
