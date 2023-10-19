@@ -353,14 +353,17 @@ impl Run {
 
 impl fmt::Display for Run {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("    - ")?;
+
         if let Some(directory) = &self.directory {
-            writeln!(f, "    - working-directory: {directory}")?;
+            writeln!(f, "working-directory: {directory}")?;
+            f.write_str("      ")?;
         }
 
         match &self.script {
-            RunEnum::Single(cmd) => writeln!(f, "      run: {cmd}")?,
+            RunEnum::Single(cmd) => writeln!(f, "run: {cmd}")?,
             RunEnum::Multi(multi) => {
-                f.write_str("      run: |\n")?;
+                f.write_str("run: |\n")?;
 
                 for cmd in multi {
                     writeln!(f, "        {cmd}")?;

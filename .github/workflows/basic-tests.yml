@@ -12,11 +12,11 @@ jobs:
         default: true
         components: clippy
     - uses: Swatinem/rust-cache@v2
-      run: cargo clippy --all-targets -- -D warnings -D clippy::all
-      run: cargo test
-      run: cargo build --all-targets
-      run: cargo doc
-      run: cargo test --benches --tests --release
+    - run: cargo clippy --all-targets -- -D warnings -D clippy::all
+    - run: cargo test
+    - run: cargo build --all-targets
+    - run: cargo doc
+    - run: cargo test --benches --tests --release
   stable-macos-latest:
     runs-on: macos-latest
     steps:
@@ -28,11 +28,11 @@ jobs:
         default: true
         components: clippy
     - uses: Swatinem/rust-cache@v2
-      run: cargo clippy --all-targets -- -D warnings -D clippy::all
-      run: cargo test
-      run: cargo build --all-targets
-      run: cargo doc
-      run: cargo test --benches --tests --release
+    - run: cargo clippy --all-targets -- -D warnings -D clippy::all
+    - run: cargo test
+    - run: cargo build --all-targets
+    - run: cargo doc
+    - run: cargo test --benches --tests --release
   stable-windows-latest:
     runs-on: windows-latest
     steps:
@@ -44,11 +44,11 @@ jobs:
         default: true
         components: clippy
     - uses: Swatinem/rust-cache@v2
-      run: cargo clippy --all-targets -- -D warnings -D clippy::all
-      run: cargo test
-      run: cargo build --all-targets
-      run: cargo doc
-      run: cargo test --benches --tests --release
+    - run: cargo clippy --all-targets -- -D warnings -D clippy::all
+    - run: cargo test
+    - run: cargo build --all-targets
+    - run: cargo doc
+    - run: cargo test --benches --tests --release
   nightly-ubuntu-latest:
     runs-on: ubuntu-latest
     steps:
@@ -60,10 +60,10 @@ jobs:
         default: true
         components: rustfmt
     - uses: Swatinem/rust-cache@v2
-      run: cargo fmt --all -- --check
+    - run: cargo fmt --all -- --check
     - uses: actions-rs/install@v0.1
       with:
         crate: cargo-udeps
         version: 0.1.40
-      run: cargo xtask ci nightly
-      run: cargo udeps --all-targets
+    - run: cargo xtask ci nightly
+    - run: cargo udeps --all-targets
