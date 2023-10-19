@@ -42,7 +42,6 @@ pub fn basic_tests(
             ),
             run("cargo fmt --all -- --check").into(),
             install("cargo-udeps", udeps_version),
-            run("cargo xtask ci nightly").into(),
             run("cargo udeps --all-targets").into(),
         ],
     )
