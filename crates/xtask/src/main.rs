@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use xtask_base::{
-    build_readme, ci_nightly, generate_open_source_files, run, CommonCmds, WorkflowResult,
+    build_readme, ci_nightly, generate_open_source_files, github::workflows, run, CommonCmds,
+    WorkflowResult,
 };
 
 #[derive(Parser)]
@@ -37,6 +38,7 @@ fn main() {
             Commands::Codegen { check } => {
                 build_readme(".", check)?;
                 generate_open_source_files(2022, check)?;
+                github_actions(check)?;
             }
             Commands::Ci { command } => {
                 if let Some(command) = command {
@@ -56,6 +58,10 @@ fn main() {
 
         Ok(())
     });
+}
+
+fn github_actions(check: bool) -> WorkflowResult<()> {
+    workflows::basic_tests("1.73", "nightly-2023-10-14", "0.1.40").write(check)
 }
 
 fn ci_stable(fast: bool, toolchain: Option<&str>) -> WorkflowResult<()> {
