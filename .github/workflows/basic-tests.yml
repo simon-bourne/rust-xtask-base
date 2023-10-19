@@ -61,9 +61,6 @@ jobs:
         components: rustfmt
     - uses: Swatinem/rust-cache@v2
     - run: cargo fmt --all -- --check
-    - uses: actions-rs/install@v0.1
-      with:
-        crate: cargo-udeps
-        version: 0.1.40
+    - run: cargo install cargo-udeps --locked --version 0.1.40
     - run: cargo xtask ci nightly
     - run: cargo udeps --all-targets
