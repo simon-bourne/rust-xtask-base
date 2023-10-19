@@ -250,10 +250,10 @@ pub fn rust_cache() -> Step {
 }
 
 pub fn install(crate_name: &str, version: &str) -> Step {
-    action("actions-rs/install@v0.1")
-        .with("crate", crate_name)
-        .with("version", version)
-        .into()
+    run(&format!(
+        "cargo install {crate_name} --locked --version {version}"
+    ))
+    .into()
 }
 
 pub struct Rust {
