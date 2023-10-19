@@ -5,5 +5,5 @@
 Utilities for creating [cargo-xtask](https://github.com/matklad/cargo-xtask) projects. Create an `xtask` crate with a `main.rs` something like:
 
 ```rust
-{{{ include "crates/xtask/src/main.rs" }}}
+{{{ include "packages/xtask/src/main.rs" }}}
 ```
