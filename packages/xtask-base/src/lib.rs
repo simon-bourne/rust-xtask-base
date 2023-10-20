@@ -73,14 +73,14 @@ impl Workspace {
 ///
 /// If an error is returned, a human friendly version is output, and the process
 /// exits with code 1
-pub fn run(f: impl FnOnce(&Workspace) -> WorkflowResult<()>) {
-    try_run(f).unwrap_or_else(|e| {
+pub fn in_workspace(f: impl FnOnce(&Workspace) -> WorkflowResult<()>) {
+    try_in_workspace(f).unwrap_or_else(|e| {
         eprintln!("{}", e);
         process::exit(1);
     });
 }
 
-fn try_run(f: impl FnOnce(&Workspace) -> WorkflowResult<()>) -> WorkflowResult<()> {
+fn try_in_workspace(f: impl FnOnce(&Workspace) -> WorkflowResult<()>) -> WorkflowResult<()> {
     let metadata = MetadataCommand::new().exec()?;
 
     let dir = current_dir()?;
@@ -141,7 +141,7 @@ pub fn generate_rustfmt_config(check: bool) -> WorkflowResult<()> {
 /// It contains a single alias for `xtask`
 pub fn generate_cargo_config(check: bool) -> WorkflowResult<()> {
     if !check {
-        fs::create_dir(".cargo")?;
+        fs::create_dir_all(".cargo")?;
     }
 
     update_file(

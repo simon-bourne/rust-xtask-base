@@ -1,6 +1,6 @@
 use clap::Parser;
 use xtask_base::{
-    build_readme, ci::CI, generate_open_source_files, run, CommonCmds, WorkflowResult,
+    build_readme, ci::CI, generate_open_source_files, in_workspace, CommonCmds, WorkflowResult,
 };
 
 #[derive(Parser)]
@@ -17,7 +17,7 @@ enum Commands {
 }
 
 fn main() {
-    run(|workspace| {
+    in_workspace(|workspace| {
         match Commands::parse() {
             Commands::Codegen { check } => code_gen(check)?,
             Commands::Ci => ci().run()?,

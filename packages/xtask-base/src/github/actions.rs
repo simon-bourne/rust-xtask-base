@@ -258,9 +258,10 @@ pub fn rust_cache() -> Step {
 }
 
 pub fn install(crate_name: &str, version: &str) -> Step {
-    cmd(format!(
-        "cargo install {crate_name} --locked --version {version}"
-    ))
+    cmd(
+        "cargo",
+        ["install", crate_name, "--locked", "--version", version],
+    )
     .into()
 }
 
@@ -340,14 +341,19 @@ pub struct Run {
     directory: Option<String>,
 }
 
-pub fn cmd(cmd: impl Into<String>) -> Run {
+pub fn cmd(program: impl Into<String>, args: impl IntoIterator<Item = impl Into<String>>) -> Run {
     Run {
-        script: RunEnum::Single(cmd.into()),
+        script: RunEnum::Single(Cmd::new(program, args)),
         directory: None,
     }
 }
 
-pub fn script(lines: impl IntoIterator<Item = impl Into<String>>) -> Run {
+pub fn script<Cmds, Cmd, Arg>(lines: Cmds) -> Run
+where
+    Cmds: IntoIterator<Item = Cmd>,
+    Cmd: IntoIterator<Item = Arg>,
+    Arg: Into<String>,
+{
     Run {
         script: RunEnum::Multi(lines.into_iter().map(Into::into).collect()),
         directory: None,
@@ -361,17 +367,13 @@ impl Run {
     }
 
     pub fn run(&self) -> WorkflowResult<()> {
-        if let Some(directory) = &self.directory {
-            println!("In '{directory}'");
-        } else {
-            println!("In current directory");
-        }
+        let dir = self.directory.as_ref();
 
         match &self.script {
-            RunEnum::Single(single) => println!("    {single}"),
+            RunEnum::Single(single) => single.run_in_dir(dir)?,
             RunEnum::Multi(multi) => {
                 for cmd in multi {
-                    println!("    {cmd}");
+                    cmd.run_in_dir(dir)?;
                 }
             }
         }
@@ -411,8 +413,61 @@ impl From<Run> for Step {
 }
 
 enum RunEnum {
-    Single(String),
-    Multi(Vec<String>),
+    Single(Cmd),
+    Multi(Vec<Cmd>),
+}
+
+struct Cmd {
+    program: String,
+    args: Vec<String>,
+}
+
+impl Cmd {
+    fn new(program: impl Into<String>, args: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        Self {
+            program: program.into(),
+            args: args.into_iter().map(Into::into).collect(),
+        }
+    }
+
+    fn run_in_dir(&self, dir: Option<impl Into<PathBuf>>) -> WorkflowResult<()> {
+        let cmd = duct::cmd(&self.program, &self.args);
+
+        if let Some(dir) = dir {
+            cmd.dir(dir)
+        } else {
+            cmd
+        }
+        .run()?;
+
+        Ok(())
+    }
+}
+
+impl fmt::Display for Cmd {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.program)?;
+
+        for arg in &self.args {
+            write!(f, " {arg}")?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<Arg, Args> From<Args> for Cmd
+where
+    Arg: Into<String>,
+    Args: IntoIterator<Item = Arg>,
+{
+    fn from(args: Args) -> Self {
+        let mut args = args.into_iter();
+        let program = args
+            .next()
+            .expect("Can't extract executable from empty argument list");
+        Self::new(program, args)
+    }
 }
 
 pub fn when(condition: bool, step: impl Into<Step>) -> Step {

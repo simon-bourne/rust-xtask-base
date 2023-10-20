@@ -99,12 +99,21 @@ impl Tasks {
         self
     }
 
-    pub fn cmd(mut self, command: impl Into<String>) -> Self {
-        self.tasks.push(Task::Run(cmd(command)));
+    pub fn cmd(
+        mut self,
+        program: impl Into<String>,
+        args: impl IntoIterator<Item = impl Into<String>>,
+    ) -> Self {
+        self.tasks.push(Task::Run(cmd(program, args)));
         self
     }
 
-    pub fn script(mut self, cmds: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn script<Cmds, Cmd, Arg>(mut self, cmds: Cmds) -> Self
+    where
+        Cmds: IntoIterator<Item = Cmd>,
+        Cmd: IntoIterator<Item = Arg>,
+        Arg: Into<String>,
+    {
         self.tasks.push(Task::Run(script(cmds)));
         self
     }
@@ -114,11 +123,22 @@ impl Tasks {
             .install(install_rust(
                 rust_toolchain(rustc_version).minimal().default().clippy(),
             ))
-            .cmd("cargo xtask codegen --check")
-            .cmd("cargo clippy --all-targets -- -D warnings -D clippy::all")
-            .cmd("cargo test")
-            .cmd("cargo build --all-targets")
-            .cmd("cargo doc")
+            .cmd("cargo", ["xtask", "codegen", "--check"])
+            .cmd(
+                "cargo",
+                [
+                    "clippy",
+                    "--all-targets",
+                    "--",
+                    "-D",
+                    "warnings",
+                    "-D",
+                    "clippy::all",
+                ],
+            )
+            .cmd("cargo", ["test"])
+            .cmd("cargo", ["build", "--all-targets"])
+            .cmd("cargo", ["doc"])
     }
 
     pub fn release_tests(rustc_version: &str, platform: Platform) -> Self {
@@ -126,7 +146,7 @@ impl Tasks {
             .install(install_rust(
                 rust_toolchain(rustc_version).minimal().default().clippy(),
             ))
-            .cmd("cargo test --benches --tests --release")
+            .cmd("cargo", ["test", "--benches", "--tests", "--release"])
     }
 
     pub fn lints(rustc_version: &str, udeps_version: &str) -> Self {
@@ -134,9 +154,9 @@ impl Tasks {
             .install(install_rust(
                 rust_toolchain(rustc_version).minimal().default().rustfmt(),
             ))
-            .cmd("cargo fmt --all -- --check")
+            .cmd("cargo", ["fmt", "--all", "--", "--check"])
             .install(install("cargo-udeps", udeps_version))
-            .cmd("cargo udeps --all-targets")
+            .cmd("cargo", ["udeps", "--all-targets"])
     }
 }
 
