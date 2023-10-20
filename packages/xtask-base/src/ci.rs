@@ -114,6 +114,7 @@ impl Tasks {
             .install(install_rust(
                 rust_toolchain(rustc_version).minimal().default().clippy(),
             ))
+            .cmd("cargo xtask codegen --check")
             .cmd("cargo clippy --all-targets -- -D warnings -D clippy::all")
             .cmd("cargo test")
             .cmd("cargo build --all-targets")
