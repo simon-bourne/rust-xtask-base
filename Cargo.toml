@@ -1,3 +1,20 @@
 [workspace]
 resolver = "2"
 members = ["packages/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]
+clap = { version = "4.0" }
+xtask-base = { path = "packages/xtask-base" }
+cargo_metadata = "0.14.1"
+chrono = "0.4.19"
+clap_complete = "4.0"
+duct = "0.13.5"
+execute = "0.2.9"
+handlebars = "4.2.1"
+itertools = "0.10.3"
+serde_json = "1.0.75"
+xshell = "0.1.17"

@@ -1,8 +1,8 @@
 [package]
 name = "xtask"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
 
 [dependencies]
-clap = { version = "4.0", features = ["derive"] }
-xtask-base = { path = "../xtask-base" }
+clap = { workspace = true, features = ["derive"] }
+xtask-base = { workspace = true }
