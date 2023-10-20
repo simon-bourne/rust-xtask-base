@@ -133,8 +133,12 @@ impl Tasks {
     }
 
     pub fn setup(mut self, step: Step) -> Self {
-        self.tasks.push(Task::Install(step));
+        self.add_setup(step);
         self
+    }
+
+    pub fn add_setup(&mut self, step: Step) {
+        self.tasks.push(Task::Install(step));
     }
 
     pub fn cmd(
@@ -142,8 +146,16 @@ impl Tasks {
         program: impl Into<String>,
         args: impl IntoIterator<Item = impl Into<String>>,
     ) -> Self {
-        self.tasks.push(Task::Run(cmd(program, args)));
+        self.add_cmd(program, args);
         self
+    }
+
+    pub fn add_cmd(
+        &mut self,
+        program: impl Into<String>,
+        args: impl IntoIterator<Item = impl Into<String>>,
+    ) {
+        self.tasks.push(Task::Run(cmd(program, args)));
     }
 
     pub fn script<Cmds, Cmd, Arg>(mut self, cmds: Cmds) -> Self
@@ -152,8 +164,17 @@ impl Tasks {
         Cmd: IntoIterator<Item = Arg>,
         Arg: Into<String>,
     {
-        self.tasks.push(Task::Run(script(cmds)));
+        self.add_script(cmds);
         self
+    }
+
+    pub fn add_script<Cmds, Cmd, Arg>(&mut self, cmds: Cmds)
+    where
+        Cmds: IntoIterator<Item = Cmd>,
+        Cmd: IntoIterator<Item = Arg>,
+        Arg: Into<String>,
+    {
+        self.tasks.push(Task::Run(script(cmds)));
     }
 
     pub fn tests(self) -> Self {
