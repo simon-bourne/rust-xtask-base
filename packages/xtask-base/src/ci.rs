@@ -15,10 +15,14 @@ impl CI {
     }
 
     pub fn standard_workflow() -> Self {
+        let rustc_stable_version = "1.73";
+        let rustc_nightly_version = "nightly-2023-10-14";
+        let udeps_version = "0.1.43";
+
         Self::new()
-            .standard_tests("1.73")
-            .standard_release_tests("1.73")
-            .standard_lints("nightly-2023-10-14", "0.1.43")
+            .standard_tests(rustc_stable_version)
+            .standard_release_tests(rustc_stable_version)
+            .standard_lints(rustc_nightly_version, udeps_version)
     }
 
     pub fn standard_lints(self, rustc_version: &str, udeps_version: &str) -> Self {
