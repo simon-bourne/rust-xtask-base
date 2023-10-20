@@ -9,7 +9,7 @@ use std::{
 
 use cargo_metadata::{Metadata, MetadataCommand};
 use chrono::{Datelike, Utc};
-use clap::CommandFactory;
+use clap::{CommandFactory, Parser};
 use clap_complete::Shell;
 use duct::IntoExecutablePath;
 use itertools::Itertools;
@@ -23,8 +23,16 @@ pub mod github;
 
 pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 
-#[derive(clap::Parser)]
+#[derive(Parser)]
 pub enum CommonCmds {
+    /// Run CI checks
+    Ci,
+    /// Generate derived files. Existing content will be overritten.
+    Codegen {
+        /// Check the files wouldn't change. Don't actually generate them.
+        #[clap(long)]
+        check: bool,
+    },
     /// Generate shell completions
     ShellCompletion { shell: Shell },
     /// Format all code
@@ -36,9 +44,24 @@ pub enum CommonCmds {
 }
 
 impl CommonCmds {
+    /// Run common commands
+    pub fn run(
+        ci: impl FnOnce() -> WorkflowResult<()>,
+        codegen: impl FnOnce(bool) -> WorkflowResult<()>,
+    ) {
+        in_workspace(|workspace| Self::parse().sub_command::<Self>(workspace, ci, codegen));
+    }
+
     /// Run the subcommand for `self`
-    pub fn run<T: CommandFactory>(&self, workspace: &Workspace) -> WorkflowResult<()> {
+    pub fn sub_command<T: CommandFactory>(
+        &self,
+        workspace: &Workspace,
+        ci: impl FnOnce() -> WorkflowResult<()>,
+        codegen: impl FnOnce(bool) -> WorkflowResult<()>,
+    ) -> WorkflowResult<()> {
         match self {
+            CommonCmds::Ci => ci(),
+            CommonCmds::Codegen { check } => codegen(*check),
             CommonCmds::ShellCompletion { shell } => {
                 let target_dir = workspace.target_dir();
                 clap_complete::generate_to(*shell, &mut T::command(), "./cargo-xtask", target_dir)?;
