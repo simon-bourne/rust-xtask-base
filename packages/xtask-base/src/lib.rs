@@ -9,6 +9,7 @@ use std::{
 
 use cargo_metadata::{Metadata, MetadataCommand};
 use chrono::{Datelike, Utc};
+use ci::CI;
 use clap::{CommandFactory, Parser};
 use clap_complete::Shell;
 use duct::IntoExecutablePath;
@@ -45,10 +46,7 @@ pub enum CommonCmds {
 
 impl CommonCmds {
     /// Run common commands
-    pub fn run(
-        ci: impl FnOnce() -> WorkflowResult<()>,
-        codegen: impl FnOnce(bool) -> WorkflowResult<()>,
-    ) {
+    pub fn run(ci: CI, codegen: impl FnOnce(bool) -> WorkflowResult<()>) {
         in_workspace(|workspace| Self::parse().sub_command::<Self>(workspace, ci, codegen));
     }
 
@@ -56,12 +54,16 @@ impl CommonCmds {
     pub fn sub_command<T: CommandFactory>(
         &self,
         workspace: &Workspace,
-        ci: impl FnOnce() -> WorkflowResult<()>,
+        ci: CI,
         codegen: impl FnOnce(bool) -> WorkflowResult<()>,
     ) -> WorkflowResult<()> {
         match self {
-            CommonCmds::Ci => ci(),
-            CommonCmds::Codegen { check } => codegen(*check),
+            CommonCmds::Ci => ci.run(),
+            CommonCmds::Codegen { check } => {
+                generate_cargo_config(*check)?;
+                ci.write(*check)?;
+                codegen(*check)
+            }
             CommonCmds::ShellCompletion { shell } => {
                 let target_dir = workspace.target_dir();
                 clap_complete::generate_to(*shell, &mut T::command(), "./cargo-xtask", target_dir)?;
@@ -141,7 +143,6 @@ pub fn build_readme(dir: &str, check: bool) -> WorkflowResult<()> {
 /// - `LICENSE-MIT`
 pub fn generate_open_source_files(start_year: i32, check: bool) -> WorkflowResult<()> {
     generate_rustfmt_config(check)?;
-    generate_cargo_config(check)?;
     generate_license_apache(start_year, check)?;
     generate_license_mit(start_year, check)?;
 
