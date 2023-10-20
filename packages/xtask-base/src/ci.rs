@@ -62,11 +62,8 @@ impl CI {
         let mut workflow = actions::workflow("ci-tests").on([push(), pull_request()]);
 
         for task in self.0 {
-            workflow.add_job(
-                &task.name,
-                task.platform,
-                task.tasks.into_iter().map(Step::from),
-            );
+            let name = task.name.clone();
+            workflow.add_job(&name, task.platform, task.tasks().map(Step::from));
         }
 
         workflow
@@ -77,6 +74,7 @@ pub struct Tasks {
     name: String,
     platform: Platform,
     is_nightly: bool,
+    setup: Vec<Task>,
     tasks: Vec<Task>,
 }
 
@@ -86,16 +84,19 @@ impl Tasks {
             name: name.into(),
             platform,
             is_nightly: rust.is_nightly(),
+            setup: Vec::new(),
             tasks: Vec::new(),
         }
-        .install(install_rust(rust))
+        .setup(install_rust(rust))
     }
 
     pub fn run(self) -> WorkflowResult<()> {
         if self.platform.is_current() {
-            for task in self.tasks {
+            let is_nightly = self.is_nightly;
+
+            for task in self.tasks() {
                 if let Task::Run(cmd) = task {
-                    cmd.run(self.is_nightly)?;
+                    cmd.run(is_nightly)?;
                 }
             }
         }
@@ -103,7 +104,12 @@ impl Tasks {
         Ok(())
     }
 
-    pub fn install(mut self, step: Step) -> Self {
+    pub fn setup(mut self, step: Step) -> Self {
+        self.setup.push(Task::Install(step));
+        self
+    }
+
+    pub fn step(mut self, step: Step) -> Self {
         self.tasks.push(Task::Install(step));
         self
     }
@@ -167,8 +173,12 @@ impl Tasks {
             rust_toolchain(rustc_version).minimal().default().rustfmt(),
         )
         .cmd("cargo", ["fmt", "--all", "--", "--check"])
-        .install(install("cargo-udeps", udeps_version))
+        .step(install("cargo-udeps", udeps_version))
         .cmd("cargo", ["udeps", "--all-targets"])
+    }
+
+    fn tasks(self) -> impl Iterator<Item = Task> {
+        self.setup.into_iter().chain(self.tasks)
     }
 }
 
