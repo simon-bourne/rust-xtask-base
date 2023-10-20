@@ -17,6 +17,7 @@ impl CI {
     pub fn standard_workflow() -> Self {
         Self::new()
             .standard_tests("1.73")
+            .standard_release_tests("1.73")
             .standard_lints("nightly-2023-10-14", "0.1.43")
     }
 
@@ -26,10 +27,15 @@ impl CI {
 
     pub fn standard_tests(mut self, rustc_version: &str) -> Self {
         for platform in Platform::latest() {
-            self.0.extend([
-                Tasks::tests(rustc_version, platform),
-                Tasks::release_tests(rustc_version, platform),
-            ]);
+            self.0.push(Tasks::tests(rustc_version, platform));
+        }
+
+        self
+    }
+
+    pub fn standard_release_tests(mut self, rustc_version: &str) -> Self {
+        for platform in Platform::latest() {
+            self.0.push(Tasks::release_tests(rustc_version, platform));
         }
 
         self
