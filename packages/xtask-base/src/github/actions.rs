@@ -284,6 +284,10 @@ pub fn rust_toolchain(version: &str) -> Rust {
 }
 
 impl Rust {
+    pub fn is_nightly(&self) -> bool {
+        self.toolchain.starts_with("nightly")
+    }
+
     pub fn wasm(mut self) -> Self {
         self.targets
             .get_or_insert_with(Vec::new)
@@ -366,14 +370,14 @@ impl Run {
         self
     }
 
-    pub fn run(&self) -> WorkflowResult<()> {
+    pub fn run(&self, is_nightly: bool) -> WorkflowResult<()> {
         let dir = self.directory.as_ref();
 
         match &self.script {
-            RunEnum::Single(single) => single.run_in_dir(dir)?,
+            RunEnum::Single(single) => single.run_in_dir(dir, is_nightly)?,
             RunEnum::Multi(multi) => {
                 for cmd in multi {
-                    cmd.run_in_dir(dir)?;
+                    cmd.run_in_dir(dir, is_nightly)?;
                 }
             }
         }
@@ -430,8 +434,17 @@ impl Cmd {
         }
     }
 
-    fn run_in_dir(&self, dir: Option<impl Into<PathBuf>>) -> WorkflowResult<()> {
-        let cmd = duct::cmd(&self.program, &self.args);
+    fn run_in_dir(&self, dir: Option<impl Into<PathBuf>>, is_nightly: bool) -> WorkflowResult<()> {
+        let cmd = if is_nightly {
+            duct::cmd(
+                "rustup",
+                ["run", "nightly", &self.program]
+                    .into_iter()
+                    .chain(self.args.iter().map(|s| s.as_str())),
+            )
+        } else {
+            duct::cmd(&self.program, &self.args)
+        };
 
         if let Some(dir) = dir {
             cmd.dir(dir)

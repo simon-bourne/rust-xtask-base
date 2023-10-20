@@ -1,7 +1,7 @@
 use crate::{
     github::actions::{
         self, cmd, install, install_rust, pull_request, push, rust_toolchain, script, Platform,
-        Run, Step, Workflow,
+        Run, Rust, Step, Workflow,
     },
     WorkflowResult,
 };
@@ -70,23 +70,26 @@ impl CI {
 pub struct Tasks {
     name: String,
     platform: Platform,
+    is_nightly: bool,
     tasks: Vec<Task>,
 }
 
 impl Tasks {
-    pub fn new(name: impl Into<String>, platform: Platform) -> Self {
+    pub fn new(name: impl Into<String>, platform: Platform, rust: Rust) -> Self {
         Self {
             name: name.into(),
             platform,
+            is_nightly: rust.is_nightly(),
             tasks: Vec::new(),
         }
+        .install(install_rust(rust))
     }
 
     pub fn run(self) -> WorkflowResult<()> {
         if self.platform.is_current() {
             for task in self.tasks {
                 if let Task::Run(cmd) = task {
-                    cmd.run()?;
+                    cmd.run(self.is_nightly)?;
                 }
             }
         }
@@ -119,44 +122,47 @@ impl Tasks {
     }
 
     pub fn tests(rustc_version: &str, platform: Platform) -> Self {
-        Self::new("tests", platform)
-            .install(install_rust(
-                rust_toolchain(rustc_version).minimal().default().clippy(),
-            ))
-            .cmd("cargo", ["xtask", "codegen", "--check"])
-            .cmd(
-                "cargo",
-                [
-                    "clippy",
-                    "--all-targets",
-                    "--",
-                    "-D",
-                    "warnings",
-                    "-D",
-                    "clippy::all",
-                ],
-            )
-            .cmd("cargo", ["test"])
-            .cmd("cargo", ["build", "--all-targets"])
-            .cmd("cargo", ["doc"])
+        Self::new(
+            "tests",
+            platform,
+            rust_toolchain(rustc_version).minimal().default().clippy(),
+        )
+        .cmd("cargo", ["xtask", "codegen", "--check"])
+        .cmd(
+            "cargo",
+            [
+                "clippy",
+                "--all-targets",
+                "--",
+                "-D",
+                "warnings",
+                "-D",
+                "clippy::all",
+            ],
+        )
+        .cmd("cargo", ["test"])
+        .cmd("cargo", ["build", "--all-targets"])
+        .cmd("cargo", ["doc"])
     }
 
     pub fn release_tests(rustc_version: &str, platform: Platform) -> Self {
-        Self::new("release_tests", platform)
-            .install(install_rust(
-                rust_toolchain(rustc_version).minimal().default().clippy(),
-            ))
-            .cmd("cargo", ["test", "--benches", "--tests", "--release"])
+        Self::new(
+            "release_tests",
+            platform,
+            rust_toolchain(rustc_version).minimal().default(),
+        )
+        .cmd("cargo", ["test", "--benches", "--tests", "--release"])
     }
 
     pub fn lints(rustc_version: &str, udeps_version: &str) -> Self {
-        Self::new("lints", Platform::UbuntuLatest)
-            .install(install_rust(
-                rust_toolchain(rustc_version).minimal().default().rustfmt(),
-            ))
-            .cmd("cargo", ["fmt", "--all", "--", "--check"])
-            .install(install("cargo-udeps", udeps_version))
-            .cmd("cargo", ["udeps", "--all-targets"])
+        Self::new(
+            "lints",
+            Platform::UbuntuLatest,
+            rust_toolchain(rustc_version).minimal().default().rustfmt(),
+        )
+        .cmd("cargo", ["fmt", "--all", "--", "--check"])
+        .install(install("cargo-udeps", udeps_version))
+        .cmd("cargo", ["udeps", "--all-targets"])
     }
 }
 

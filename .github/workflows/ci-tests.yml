@@ -26,7 +26,6 @@ jobs:
         toolchain: 1.73
         profile: minimal
         default: true
-        components: clippy
     - uses: Swatinem/rust-cache@v2
     - run: cargo test --benches --tests --release
   tests-macos-latest:
@@ -54,7 +53,6 @@ jobs:
         toolchain: 1.73
         profile: minimal
         default: true
-        components: clippy
     - uses: Swatinem/rust-cache@v2
     - run: cargo test --benches --tests --release
   tests-windows-latest:
@@ -82,7 +80,6 @@ jobs:
         toolchain: 1.73
         profile: minimal
         default: true
-        components: clippy
     - uses: Swatinem/rust-cache@v2
     - run: cargo test --benches --tests --release
   lints-ubuntu-latest:
