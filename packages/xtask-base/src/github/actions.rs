@@ -166,6 +166,7 @@ impl Platform {
 pub struct Action {
     uses: String,
     with: Vec<(String, String)>,
+    env: Vec<(String, String)>,
 }
 
 impl Action {
@@ -177,19 +178,39 @@ impl Action {
     pub fn add_with(&mut self, key: &str, value: impl fmt::Display) {
         self.with.push((key.to_string(), value.to_string()));
     }
+
+    pub fn env(mut self, key: &str, value: impl fmt::Display) -> Self {
+        self.add_env(key, value);
+        self
+    }
+
+    pub fn add_env(&mut self, key: &str, value: impl fmt::Display) {
+        self.env.push((key.to_string(), value.to_string()));
+    }
+
+    fn key_values(
+        name: &str,
+        key_values: &Vec<(String, String)>,
+        f: &mut fmt::Formatter<'_>,
+    ) -> Result<(), fmt::Error> {
+        if !key_values.is_empty() {
+            writeln!(f, "      {name}:")?;
+
+            for (key, value) in key_values {
+                writeln!(f, "        {key}: {value}")?;
+            }
+        };
+
+        Ok(())
+    }
 }
 
 impl fmt::Display for Action {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "    - uses: {}", self.uses)?;
 
-        if !self.with.is_empty() {
-            f.write_str("      with:\n")?;
-
-            for (key, value) in &self.with {
-                writeln!(f, "        {key}: {value}")?;
-            }
-        }
+        Self::key_values("with", &self.with, f)?;
+        Self::key_values("env", &self.env, f)?;
 
         Ok(())
     }
@@ -199,6 +220,7 @@ pub fn action(uses: &str) -> Action {
     Action {
         uses: uses.to_string(),
         with: Vec::new(),
+        env: Vec::new(),
     }
 }
 
