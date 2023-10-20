@@ -1,12 +1,20 @@
-use std::{error, fs, path::Path, process};
+use std::{
+    env::{current_dir, set_current_dir},
+    error,
+    ffi::OsString,
+    fs,
+    path::Path,
+    process,
+};
 
 use cargo_metadata::{Metadata, MetadataCommand};
 use chrono::{Datelike, Utc};
 use clap::CommandFactory;
 use clap_complete::Shell;
+use duct::IntoExecutablePath;
 use itertools::Itertools;
+use scopeguard::defer;
 use serde_json::json;
-use xshell::{cmd, mkdir_p, pushd, read_file, write_file};
 
 mod template;
 
@@ -37,8 +45,8 @@ impl CommonCmds {
                 println!("Completions file generated in `{}`", target_dir.display());
                 Ok(())
             }
-            CommonCmds::Fmt => cargo_fmt(Some("+nightly"), false),
-            CommonCmds::Udeps => cargo_udeps(Some("+nightly")),
+            CommonCmds::Fmt => cmd("cargo", ["+nightly", "fmt", "--all"]),
+            CommonCmds::Udeps => cmd("cargo", ["+nightly", "udeps", "--all-targets"]),
             CommonCmds::MacroExpand { package } => {
                 duct::cmd("cargo", ["expand", "--color=always", "--package", package])
                     .pipe(duct::cmd("less", ["-r"]))
@@ -66,16 +74,18 @@ impl Workspace {
 /// If an error is returned, a human friendly version is output, and the process
 /// exits with code 1
 pub fn run(f: impl FnOnce(&Workspace) -> WorkflowResult<()>) {
-    run_or_err(f).unwrap_or_else(|e| {
+    try_run(f).unwrap_or_else(|e| {
         eprintln!("{}", e);
         process::exit(1);
     });
 }
 
-fn run_or_err(f: impl FnOnce(&Workspace) -> WorkflowResult<()>) -> WorkflowResult<()> {
+fn try_run(f: impl FnOnce(&Workspace) -> WorkflowResult<()>) -> WorkflowResult<()> {
     let metadata = MetadataCommand::new().exec()?;
 
-    let _dir = pushd(&metadata.workspace_root)?;
+    let dir = current_dir()?;
+    set_current_dir(&metadata.workspace_root)?;
+    defer! {set_current_dir(dir).expect("Failed to reset current directory to {dir}")}
 
     f(&Workspace(metadata))
 }
@@ -131,7 +141,7 @@ pub fn generate_rustfmt_config(check: bool) -> WorkflowResult<()> {
 /// It contains a single alias for `xtask`
 pub fn generate_cargo_config(check: bool) -> WorkflowResult<()> {
     if !check {
-        mkdir_p(".cargo")?;
+        fs::create_dir(".cargo")?;
     }
 
     update_file(
@@ -184,68 +194,22 @@ fn generate_license(
 }
 
 fn update_file(path: impl AsRef<Path>, contents: &str, check: bool) -> WorkflowResult<()> {
+    let path = path.as_ref();
+
     if check {
         // Ignore windows line endings
-        let existing_contents = read_file(path.as_ref())?.lines().join("\n");
+        let existing_contents = fs::read_to_string(path)?.lines().join("\n");
 
         if existing_contents != contents.lines().join("\n") {
-            return Err(
-                format!("Differences found in file \"{}\"", path.as_ref().display()).into(),
-            );
+            return Err(format!("Differences found in file \"{}\"", path.display()).into());
         }
     } else {
-        write_file(path, contents)?;
-    }
-
-    Ok(())
-}
-
-/// Run basic CI checks on stable toolchain
-///
-/// - `cargo [clippy, test, build, doc]`
-/// - `cargo test --benches --tests --release`, except in when `fast` is `true`
-pub fn ci_stable(fast: bool, toolchain: Option<&str>, features: &[&str]) -> WorkflowResult<()> {
-    let cargo_toolchain = &cargo_toolchain(toolchain);
-
-    for feature_set in features.iter().copied().powerset() {
-        clippy(toolchain, &feature_set)?;
-
-        let feature_set = feature_set.join(",");
-
-        cmd!("cargo {cargo_toolchain...} test --features {feature_set}").run()?;
-        cmd!("cargo {cargo_toolchain...} build --all-targets --features {feature_set}").run()?;
-        cmd!("cargo {cargo_toolchain...} doc --features {feature_set}").run()?;
-
-        if !fast {
-            cmd!("cargo {cargo_toolchain...} test --benches --tests --release --features {feature_set}")
-                .run()?;
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
         }
+
+        fs::write(path, contents)?;
     }
-
-    Ok(())
-}
-
-pub fn clippy(toolchain: Option<&str>, features: &[&str]) -> WorkflowResult<()> {
-    let toolchain = cargo_toolchain(toolchain);
-    let feature_set = features.join(",");
-
-    cmd!("cargo {toolchain...} clippy --features {feature_set} --all-targets -- -D warnings -D clippy::all").run()?;
-    Ok(())
-}
-
-fn cargo_toolchain(toolchain: Option<&str>) -> Option<String> {
-    toolchain.as_ref().map(|tc| format!("+{}", tc))
-}
-
-/// Nightly only CI checks:
-///
-/// - `cargo fmt`
-/// - `cargo udeps`
-pub fn ci_nightly(toolchain: Option<&str>) -> WorkflowResult<()> {
-    let toolchain = toolchain.as_ref().map(|tc| format!("+{}", tc));
-    let toolchain = toolchain.as_deref();
-    cargo_fmt(toolchain, true)?;
-    cargo_udeps(toolchain)?;
 
     Ok(())
 }
@@ -284,13 +248,12 @@ pub fn target_os() -> TargetOs {
     return TargetOs::NetBsd;
 }
 
-fn cargo_udeps(toolchain: Option<&str>) -> WorkflowResult<()> {
-    cmd!("cargo {toolchain...} udeps --all-targets").run()?;
-    Ok(())
-}
-
-fn cargo_fmt(toolchain: Option<&str>, check: bool) -> WorkflowResult<()> {
-    let check = if check { &["--", "--check"] } else { &[][..] };
-    cmd!("cargo {toolchain...} fmt --all {check...}").run()?;
+fn cmd<T, U>(program: T, args: U) -> WorkflowResult<()>
+where
+    T: IntoExecutablePath,
+    U: IntoIterator,
+    U::Item: Into<OsString>,
+{
+    duct::cmd(program, args).run()?;
     Ok(())
 }

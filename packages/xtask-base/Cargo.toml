@@ -4,13 +4,13 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
-clap = { workspace = true, features = ["derive"] }
 cargo_metadata.workspace = true
 chrono.workspace = true
+clap = { workspace = true, features = ["derive"] }
 clap_complete.workspace = true
 duct.workspace = true
 execute.workspace = true
 handlebars.workspace = true
 itertools.workspace = true
+scopeguard.workspace = true
 serde_json.workspace = true
-xshell.workspace = true
