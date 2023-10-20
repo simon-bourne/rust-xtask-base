@@ -5,7 +5,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
+    - uses: ructions/toolchain@v2
       with:
         toolchain: 1.73
         profile: minimal
@@ -21,7 +21,7 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
+    - uses: ructions/toolchain@v2
       with:
         toolchain: 1.73
         profile: minimal
@@ -37,7 +37,7 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
+    - uses: ructions/toolchain@v2
       with:
         toolchain: 1.73
         profile: minimal
@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: actions-rs/toolchain@v1
+    - uses: ructions/toolchain@v2
       with:
         toolchain: nightly-2023-10-14
         profile: minimal

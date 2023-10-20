@@ -261,7 +261,7 @@ pub struct Rust {
     profile: Option<&'static str>,
     default: bool,
     components: Vec<&'static str>,
-    target: Option<String>,
+    targets: Option<Vec<String>>,
 }
 
 pub fn rust_toolchain(version: &str) -> Rust {
@@ -270,13 +270,15 @@ pub fn rust_toolchain(version: &str) -> Rust {
         profile: None,
         default: false,
         components: Vec::new(),
-        target: None,
+        targets: None,
     }
 }
 
 impl Rust {
     pub fn wasm(mut self) -> Self {
-        self.target = Some("wasm32-unknown-unknown".to_string());
+        self.targets
+            .get_or_insert_with(Vec::new)
+            .push("wasm32-unknown-unknown".to_string());
         self
     }
 
@@ -303,7 +305,7 @@ impl Rust {
 
 impl From<Rust> for Step {
     fn from(value: Rust) -> Self {
-        let mut action = action("actions-rs/toolchain@v1").with("toolchain", value.toolchain);
+        let mut action = action("ructions/toolchain@v2").with("toolchain", value.toolchain);
 
         if let Some(profile) = value.profile {
             action.add_with("profile", profile);
@@ -317,11 +319,11 @@ impl From<Rust> for Step {
             action.add_with("components", value.components.join(", "));
         }
 
-        if let Some(target) = value.target {
-            action.add_with("target", target);
+        if let Some(targets) = value.targets {
+            action.add_with("targets", targets.join(", "));
         }
 
-        Step(StepEnum::Action(action))
+        action.into()
     }
 }
 
