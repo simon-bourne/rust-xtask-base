@@ -22,12 +22,26 @@ impl CI {
     }
 
     pub fn standard_lints(self, rustc_version: &str, udeps_version: &str) -> Self {
-        self.job(Tasks::lints(rustc_version, udeps_version))
+        self.job(
+            Tasks::new(
+                "lints",
+                Platform::UbuntuLatest,
+                rust_toolchain(rustc_version).minimal().default().rustfmt(),
+            )
+            .lints(udeps_version),
+        )
     }
 
     pub fn standard_tests(mut self, rustc_version: &str) -> Self {
         for platform in Platform::latest() {
-            self.0.push(Tasks::tests(rustc_version, platform));
+            self.0.push(
+                Tasks::new(
+                    "tests",
+                    platform,
+                    rust_toolchain(rustc_version).minimal().default().clippy(),
+                )
+                .tests(),
+            );
         }
 
         self
@@ -35,7 +49,14 @@ impl CI {
 
     pub fn standard_release_tests(mut self, rustc_version: &str) -> Self {
         for platform in Platform::latest() {
-            self.0.push(Tasks::release_tests(rustc_version, platform));
+            self.0.push(
+                Tasks::new(
+                    "release-tests",
+                    platform,
+                    rust_toolchain(rustc_version).minimal().default(),
+                )
+                .release_tests(),
+            );
         }
 
         self
@@ -66,8 +87,11 @@ impl CI {
         let mut workflow = actions::workflow("ci-tests").on([push(), pull_request()]);
 
         for task in self.0 {
-            let name = task.name.clone();
-            workflow.add_job(&name, task.platform, task.tasks().map(Step::from));
+            workflow.add_job(
+                &task.name,
+                task.platform,
+                task.tasks.into_iter().map(Step::from),
+            );
         }
 
         workflow
@@ -78,7 +102,6 @@ pub struct Tasks {
     name: String,
     platform: Platform,
     is_nightly: bool,
-    setup: Vec<Task>,
     tasks: Vec<Task>,
 }
 
@@ -88,29 +111,21 @@ impl Tasks {
             name: name.into(),
             platform,
             is_nightly: rust.is_nightly(),
-            setup: Vec::new(),
             tasks: Vec::new(),
         }
-        .setup(install_rust(rust))
+        .step(install_rust(rust))
     }
 
     pub fn run(self) -> WorkflowResult<()> {
         if self.platform.is_current() {
-            let is_nightly = self.is_nightly;
-
-            for task in self.tasks() {
+            for task in self.tasks.into_iter() {
                 if let Task::Run(cmd) = task {
-                    cmd.run(is_nightly)?;
+                    cmd.run(self.is_nightly)?;
                 }
             }
         }
 
         Ok(())
-    }
-
-    pub fn setup(mut self, step: Step) -> Self {
-        self.setup.push(Task::Install(step));
-        self
     }
 
     pub fn step(mut self, step: Step) -> Self {
@@ -137,52 +152,33 @@ impl Tasks {
         self
     }
 
-    pub fn tests(rustc_version: &str, platform: Platform) -> Self {
-        Self::new(
-            "tests",
-            platform,
-            rust_toolchain(rustc_version).minimal().default().clippy(),
-        )
-        .cmd("cargo", ["xtask", "codegen", "--check"])
-        .cmd(
-            "cargo",
-            [
-                "clippy",
-                "--all-targets",
-                "--",
-                "-D",
-                "warnings",
-                "-D",
-                "clippy::all",
-            ],
-        )
-        .cmd("cargo", ["test"])
-        .cmd("cargo", ["build", "--all-targets"])
-        .cmd("cargo", ["doc"])
+    pub fn tests(self) -> Self {
+        self.cmd("cargo", ["xtask", "codegen", "--check"])
+            .cmd(
+                "cargo",
+                [
+                    "clippy",
+                    "--all-targets",
+                    "--",
+                    "-D",
+                    "warnings",
+                    "-D",
+                    "clippy::all",
+                ],
+            )
+            .cmd("cargo", ["test"])
+            .cmd("cargo", ["build", "--all-targets"])
+            .cmd("cargo", ["doc"])
     }
 
-    pub fn release_tests(rustc_version: &str, platform: Platform) -> Self {
-        Self::new(
-            "release_tests",
-            platform,
-            rust_toolchain(rustc_version).minimal().default(),
-        )
-        .cmd("cargo", ["test", "--benches", "--tests", "--release"])
+    pub fn release_tests(self) -> Self {
+        self.cmd("cargo", ["test", "--benches", "--tests", "--release"])
     }
 
-    pub fn lints(rustc_version: &str, udeps_version: &str) -> Self {
-        Self::new(
-            "lints",
-            Platform::UbuntuLatest,
-            rust_toolchain(rustc_version).minimal().default().rustfmt(),
-        )
-        .cmd("cargo", ["fmt", "--all", "--", "--check"])
-        .step(install("cargo-udeps", udeps_version))
-        .cmd("cargo", ["udeps", "--all-targets"])
-    }
-
-    fn tasks(self) -> impl Iterator<Item = Task> {
-        self.setup.into_iter().chain(self.tasks)
+    pub fn lints(self, udeps_version: &str) -> Self {
+        self.cmd("cargo", ["fmt", "--all", "--", "--check"])
+            .step(install("cargo-udeps", udeps_version))
+            .cmd("cargo", ["udeps", "--all-targets"])
     }
 }
 

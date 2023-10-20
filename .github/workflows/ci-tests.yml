@@ -51,7 +51,7 @@ jobs:
     - run: cargo test
     - run: cargo build --all-targets
     - run: cargo doc
-  release_tests-ubuntu-latest:
+  release-tests-ubuntu-latest:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
@@ -62,7 +62,7 @@ jobs:
         default: true
     - uses: Swatinem/rust-cache@v2
     - run: cargo test --benches --tests --release
-  release_tests-macos-latest:
+  release-tests-macos-latest:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v3
@@ -73,7 +73,7 @@ jobs:
         default: true
     - uses: Swatinem/rust-cache@v2
     - run: cargo test --benches --tests --release
-  release_tests-windows-latest:
+  release-tests-windows-latest:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
