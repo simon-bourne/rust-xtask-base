@@ -7,8 +7,7 @@ Utilities for creating [cargo-xtask](https://github.com/matklad/cargo-xtask) pro
 ```rust
 use clap::{Parser, Subcommand};
 use xtask_base::{
-    build_readme, ci_nightly, generate_open_source_files, github::workflows, run, CommonCmds,
-    WorkflowResult,
+    build_readme, ci::CI, ci_nightly, generate_open_source_files, run, CommonCmds, WorkflowResult,
 };
 
 #[derive(Parser)]
@@ -70,7 +69,7 @@ fn code_gen(check: bool) -> WorkflowResult<()> {
 }
 
 fn github_actions(check: bool) -> WorkflowResult<()> {
-    workflows::basic_tests("1.73", "nightly-2023-10-14", "0.1.43").write(check)
+    CI::standard_workflow().write(check)
 }
 
 fn ci_stable(fast: bool, toolchain: Option<&str>) -> WorkflowResult<()> {

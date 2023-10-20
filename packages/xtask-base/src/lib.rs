@@ -11,6 +11,7 @@ use xshell::{cmd, mkdir_p, pushd, read_file, write_file};
 mod template;
 
 pub mod github;
+pub mod ci;
 
 pub type WorkflowResult<T> = Result<T, Box<dyn error::Error>>;
 

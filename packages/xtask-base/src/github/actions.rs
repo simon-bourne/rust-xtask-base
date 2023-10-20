@@ -1,4 +1,4 @@
-use std::{fmt, path::PathBuf};
+use std::{env::consts::OS, fmt, path::PathBuf};
 
 use crate::{update_file, WorkflowResult};
 
@@ -144,6 +144,14 @@ impl Platform {
         .into_iter()
     }
 
+    pub fn is_current(self) -> bool {
+        match self {
+            Platform::UbuntuLatest => OS == "linux",
+            Platform::MacOSLatest => OS == "macos",
+            Platform::WindowsLatest => OS == "windows",
+        }
+    }
+
     fn as_str(self) -> &'static str {
         match self {
             Platform::UbuntuLatest => "ubuntu-latest",
@@ -250,7 +258,7 @@ pub fn rust_cache() -> Step {
 }
 
 pub fn install(crate_name: &str, version: &str) -> Step {
-    run(&format!(
+    cmd(format!(
         "cargo install {crate_name} --locked --version {version}"
     ))
     .into()
@@ -332,24 +340,43 @@ pub struct Run {
     directory: Option<String>,
 }
 
-pub fn run(cmd: &str) -> Run {
+pub fn cmd(cmd: impl Into<String>) -> Run {
     Run {
         script: RunEnum::Single(cmd.into()),
         directory: None,
     }
 }
 
-impl Run {
-    pub fn lines(lines: impl IntoIterator<Item = impl Into<String>>) -> Self {
-        Run {
-            script: RunEnum::Multi(lines.into_iter().map(Into::into).collect()),
-            directory: None,
-        }
+pub fn script(lines: impl IntoIterator<Item = impl Into<String>>) -> Run {
+    Run {
+        script: RunEnum::Multi(lines.into_iter().map(Into::into).collect()),
+        directory: None,
     }
+}
 
+impl Run {
     pub fn in_directory(mut self, directory: &str) -> Self {
         self.directory = Some(directory.to_string());
         self
+    }
+
+    pub fn run(&self) -> WorkflowResult<()> {
+        if let Some(directory) = &self.directory {
+            println!("In '{directory}'");
+        } else {
+            println!("In current directory");
+        }
+
+        match &self.script {
+            RunEnum::Single(single) => println!("    {single}"),
+            RunEnum::Multi(multi) => {
+                for cmd in multi {
+                    println!("    {cmd}");
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
