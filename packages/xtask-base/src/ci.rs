@@ -42,8 +42,12 @@ impl CI {
     }
 
     pub fn job(mut self, tasks: Tasks) -> Self {
-        self.0.push(tasks);
+        self.add_job(tasks);
         self
+    }
+
+    pub fn add_job(&mut self, tasks: Tasks) {
+        self.0.push(tasks);
     }
 
     pub fn write(self, check: bool) -> WorkflowResult<()> {
