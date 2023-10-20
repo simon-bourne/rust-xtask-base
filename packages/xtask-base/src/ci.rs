@@ -1,7 +1,7 @@
 use crate::{
     github::actions::{
-        self, cmd, install, install_rust, multi_step, pull_request, push, rust_toolchain, script,
-        Platform, Run, Rust, Step, Workflow,
+        self, cmd, install, install_rust, pull_request, push, rust_toolchain, script, Platform,
+        Run, Rust, Step, Workflow,
     },
     WorkflowResult,
 };
@@ -20,32 +20,23 @@ impl CI {
         let udeps_version = "0.1.43";
 
         Self::new()
-            .standard_tests(rustc_stable_version, || [])
-            .standard_release_tests(rustc_stable_version, || [])
-            .standard_lints(rustc_nightly_version, udeps_version, [])
+            .standard_tests(rustc_stable_version)
+            .standard_release_tests(rustc_stable_version)
+            .standard_lints(rustc_nightly_version, udeps_version)
     }
 
-    pub fn standard_lints(
-        self,
-        rustc_version: &str,
-        udeps_version: &str,
-        setup: impl IntoIterator<Item = Step>,
-    ) -> Self {
+    pub fn standard_lints(self, rustc_version: &str, udeps_version: &str) -> Self {
         self.job(
             Tasks::new(
                 "lints",
                 Platform::UbuntuLatest,
                 rust_toolchain(rustc_version).minimal().default().rustfmt(),
             )
-            .setup(multi_step(setup))
             .lints(udeps_version),
         )
     }
 
-    pub fn standard_tests<I>(mut self, rustc_version: &str, mut setup: impl FnMut() -> I) -> Self
-    where
-        I: IntoIterator<Item = Step>,
-    {
+    pub fn standard_tests(mut self, rustc_version: &str) -> Self {
         for platform in Platform::latest() {
             self.0.push(
                 Tasks::new(
@@ -53,7 +44,6 @@ impl CI {
                     platform,
                     rust_toolchain(rustc_version).minimal().default().clippy(),
                 )
-                .setup(multi_step(setup()))
                 .tests(),
             );
         }
@@ -61,14 +51,7 @@ impl CI {
         self
     }
 
-    pub fn standard_release_tests<I>(
-        mut self,
-        rustc_version: &str,
-        mut setup: impl FnMut() -> I,
-    ) -> Self
-    where
-        I: IntoIterator<Item = Step>,
-    {
+    pub fn standard_release_tests(mut self, rustc_version: &str) -> Self {
         for platform in Platform::latest() {
             self.0.push(
                 Tasks::new(
@@ -76,7 +59,6 @@ impl CI {
                     platform,
                     rust_toolchain(rustc_version).minimal().default(),
                 )
-                .setup(multi_step(setup()))
                 .release_tests(),
             );
         }
