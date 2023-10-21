@@ -415,7 +415,7 @@ impl From<Rust> for Step {
         }
 
         if let Some(targets) = value.targets {
-            action.add_with("targets", targets.join(", "));
+            action.add_with("target", targets.join(", "));
         }
 
         action.into()
