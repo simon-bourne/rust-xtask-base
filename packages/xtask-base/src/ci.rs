@@ -91,9 +91,9 @@ impl CI {
         self.into_workflow().write(check)
     }
 
-    pub fn run(self) -> WorkflowResult<()> {
-        for task in self.0 {
-            task.run()?;
+    pub fn execute(self) -> WorkflowResult<()> {
+        for task in self.tasks {
+            task.execute()?;
         }
 
         Ok(())
@@ -138,7 +138,7 @@ impl Tasks {
         .setup(install_rust(rust))
     }
 
-    pub fn run(self) -> WorkflowResult<()> {
+    pub fn execute(self) -> WorkflowResult<()> {
         if self.platform.is_current() {
             for task in self.tasks.into_iter() {
                 if let Task::Run(cmd) = task {
@@ -159,13 +159,21 @@ impl Tasks {
         self.tasks.push(Task::Install(step));
     }
 
+    pub fn run(mut self, run: Run) -> Self {
+        self.add_run(run);
+        self
+    }
+
+    pub fn add_run(&mut self, run: Run) {
+        self.tasks.push(Task::Run(run))
+    }
+
     pub fn cmd(
-        mut self,
+        self,
         program: impl Into<String>,
         args: impl IntoIterator<Item = impl Into<String>>,
     ) -> Self {
-        self.add_cmd(program, args);
-        self
+        self.run(cmd(program, args))
     }
 
     pub fn add_cmd(
@@ -173,17 +181,16 @@ impl Tasks {
         program: impl Into<String>,
         args: impl IntoIterator<Item = impl Into<String>>,
     ) {
-        self.tasks.push(Task::Run(cmd(program, args)));
+        self.add_run(cmd(program, args));
     }
 
-    pub fn script<Cmds, Cmd, Arg>(mut self, cmds: Cmds) -> Self
+    pub fn script<Cmds, Cmd, Arg>(self, cmds: Cmds) -> Self
     where
         Cmds: IntoIterator<Item = Cmd>,
         Cmd: IntoIterator<Item = Arg>,
         Arg: Into<String>,
     {
-        self.add_script(cmds);
-        self
+        self.run(script(cmds))
     }
 
     pub fn add_script<Cmds, Cmd, Arg>(&mut self, cmds: Cmds)
@@ -192,7 +199,7 @@ impl Tasks {
         Cmd: IntoIterator<Item = Arg>,
         Arg: Into<String>,
     {
-        self.tasks.push(Task::Run(script(cmds)));
+        self.add_run(script(cmds));
     }
 
     pub fn tests(self) -> Self {

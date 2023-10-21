@@ -58,7 +58,7 @@ impl CommonCmds {
         codegen: impl FnOnce(bool) -> WorkflowResult<()>,
     ) -> WorkflowResult<()> {
         match self {
-            CommonCmds::Ci => ci.run(),
+            CommonCmds::Ci => ci.execute(),
             CommonCmds::Codegen { check } => {
                 generate_cargo_config(*check)?;
                 ci.write(*check)?;
