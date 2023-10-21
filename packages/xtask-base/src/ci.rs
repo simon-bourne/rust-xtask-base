@@ -214,7 +214,6 @@ impl Tasks {
     pub fn tests(mut self, extra_workspace_dirs: &[&str]) -> Self {
         let tests = || {
             [
-                cmd("cargo", ["xtask", "codegen", "--check"]),
                 cmd(
                     "cargo",
                     [
@@ -233,6 +232,7 @@ impl Tasks {
             ]
         };
 
+        self.add_cmd("cargo", ["xtask", "codegen", "--check"]);
         tests().map(|run| self.add_run(run));
 
         for dir in extra_workspace_dirs {
