@@ -146,7 +146,7 @@ impl Platform {
         .into_iter()
     }
 
-    pub fn current(self) -> Self {
+    pub fn current() -> Self {
         match OS {
             "linux" => Platform::UbuntuLatest,
             "macos" => Platform::MacOSLatest,
