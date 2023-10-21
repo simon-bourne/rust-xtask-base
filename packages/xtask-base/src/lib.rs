@@ -13,6 +13,7 @@ use ci::CI;
 use clap::{CommandFactory, Parser};
 use clap_complete::Shell;
 use duct::IntoExecutablePath;
+use github::actions::Platform;
 use itertools::Itertools;
 use scopeguard::defer;
 use serde_json::json;
@@ -61,9 +62,13 @@ impl CommonCmds {
         match self {
             CommonCmds::Ci => ci.execute(),
             CommonCmds::Codegen { check } => {
-                generate_cargo_config(*check)?;
-                ci.write(*check)?;
-                codegen(*check)
+                if !*check || Platform::current() != Platform::WindowsLatest {
+                    generate_cargo_config(*check)?;
+                    ci.write(*check)?;
+                    codegen(*check)?;
+                }
+
+                Ok(())
             }
             CommonCmds::ShellCompletion { shell } => {
                 let target_dir = workspace.target_dir();
