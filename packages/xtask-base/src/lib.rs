@@ -47,13 +47,14 @@ pub enum CommonCmds {
 impl CommonCmds {
     /// Run common commands
     pub fn run(ci: CI, codegen: impl FnOnce(bool) -> WorkflowResult<()>) {
-        in_workspace(|workspace| Self::parse().sub_command::<Self>(workspace, ci, codegen));
+        in_workspace(|workspace| Self::parse().sub_command::<Self>(workspace, [], ci, codegen));
     }
 
     /// Run the subcommand for `self`
-    pub fn sub_command<T: CommandFactory>(
+    pub fn sub_command<'a, T: CommandFactory>(
         &self,
         workspace: &Workspace,
+        extra_workspace_dirs: impl IntoIterator<Item = &'a str>,
         ci: CI,
         codegen: impl FnOnce(bool) -> WorkflowResult<()>,
     ) -> WorkflowResult<()> {
@@ -70,7 +71,7 @@ impl CommonCmds {
                 println!("Completions file generated in `{}`", target_dir.display());
                 Ok(())
             }
-            CommonCmds::Fmt => cmd("cargo", ["+nightly", "fmt", "--all"]),
+            CommonCmds::Fmt => fmt(extra_workspace_dirs),
             CommonCmds::Udeps => cmd("cargo", ["+nightly", "udeps", "--all-targets"]),
             CommonCmds::MacroExpand { package } => {
                 duct::cmd("cargo", ["expand", "--color=always", "--package", package])
@@ -80,6 +81,16 @@ impl CommonCmds {
             }
         }
     }
+}
+
+fn fmt<'a>(extra_workspace_dirs: impl IntoIterator<Item = &'a str>) -> WorkflowResult<()> {
+    for dir in extra_workspace_dirs {
+        duct::cmd("cargo", ["+nightly", "fmt", "--all"])
+            .dir(dir)
+            .run()?;
+    }
+
+    cmd("cargo", ["+nightly", "fmt", "--all"])
 }
 
 /// Metadata about the cargo workspace

@@ -26,29 +26,34 @@ impl CI {
         }
     }
 
-    pub fn standard_workflow() -> Self {
+    pub fn standard_workflow(extra_workspace_dirs: &[&str]) -> Self {
         let rustc_stable_version = "1.73";
         let rustc_nightly_version = "nightly-2023-10-14";
         let udeps_version = "0.1.43";
 
         Self::new()
-            .standard_tests(rustc_stable_version)
-            .standard_release_tests(rustc_stable_version)
-            .standard_lints(rustc_nightly_version, udeps_version)
+            .standard_tests(rustc_stable_version, extra_workspace_dirs)
+            .standard_release_tests(rustc_stable_version, extra_workspace_dirs)
+            .standard_lints(rustc_nightly_version, udeps_version, extra_workspace_dirs)
     }
 
-    pub fn standard_lints(self, rustc_version: &str, udeps_version: &str) -> Self {
+    pub fn standard_lints(
+        self,
+        rustc_version: &str,
+        udeps_version: &str,
+        extra_workspace_dirs: &[&str],
+    ) -> Self {
         self.job(
             Tasks::new(
                 "lints",
                 Platform::UbuntuLatest,
                 rust_toolchain(rustc_version).minimal().default().rustfmt(),
             )
-            .lints(udeps_version),
+            .lints(udeps_version, extra_workspace_dirs),
         )
     }
 
-    pub fn standard_tests(mut self, rustc_version: &str) -> Self {
+    pub fn standard_tests(mut self, rustc_version: &str, extra_workspace_dirs: &[&str]) -> Self {
         for platform in Platform::latest() {
             self.tasks.push(
                 Tasks::new(
@@ -56,14 +61,18 @@ impl CI {
                     platform,
                     rust_toolchain(rustc_version).minimal().default().clippy(),
                 )
-                .tests(),
+                .tests(extra_workspace_dirs),
             );
         }
 
         self
     }
 
-    pub fn standard_release_tests(mut self, rustc_version: &str) -> Self {
+    pub fn standard_release_tests(
+        mut self,
+        rustc_version: &str,
+        extra_workspace_dirs: &[&str],
+    ) -> Self {
         for platform in Platform::latest() {
             self.tasks.push(
                 Tasks::new(
@@ -71,7 +80,7 @@ impl CI {
                     platform,
                     rust_toolchain(rustc_version).minimal().default(),
                 )
-                .release_tests(),
+                .release_tests(extra_workspace_dirs),
             );
         }
 
@@ -202,33 +211,67 @@ impl Tasks {
         self.add_run(script(cmds));
     }
 
-    pub fn tests(self) -> Self {
-        self.cmd("cargo", ["xtask", "codegen", "--check"])
-            .cmd(
-                "cargo",
-                [
-                    "clippy",
-                    "--all-targets",
-                    "--",
-                    "-D",
-                    "warnings",
-                    "-D",
-                    "clippy::all",
-                ],
-            )
-            .cmd("cargo", ["test"])
-            .cmd("cargo", ["build", "--all-targets"])
-            .cmd("cargo", ["doc"])
+    pub fn tests(mut self, extra_workspace_dirs: &[&str]) -> Self {
+        let tests = || {
+            [
+                cmd("cargo", ["xtask", "codegen", "--check"]),
+                cmd(
+                    "cargo",
+                    [
+                        "clippy",
+                        "--all-targets",
+                        "--",
+                        "-D",
+                        "warnings",
+                        "-D",
+                        "clippy::all",
+                    ],
+                ),
+                cmd("cargo", ["test"]),
+                cmd("cargo", ["build", "--all-targets"]),
+                cmd("cargo", ["doc"]),
+            ]
+        };
+
+        tests().map(|run| self.add_run(run));
+
+        for dir in extra_workspace_dirs {
+            tests().map(|run| self.add_run(run.in_directory(dir)));
+        }
+
+        self
     }
 
-    pub fn release_tests(self) -> Self {
-        self.cmd("cargo", ["test", "--benches", "--tests", "--release"])
+    pub fn release_tests(mut self, extra_workspace_dirs: &[&str]) -> Self {
+        let test = || cmd("cargo", ["test", "--benches", "--tests", "--release"]);
+        self.add_run(test());
+
+        for dir in extra_workspace_dirs {
+            self.add_run(test().in_directory(dir));
+        }
+
+        self
     }
 
-    pub fn lints(self, udeps_version: &str) -> Self {
-        self.cmd("cargo", ["fmt", "--all", "--", "--check"])
-            .step(install("cargo-udeps", udeps_version))
-            .cmd("cargo", ["udeps", "--all-targets"])
+    pub fn lints(mut self, udeps_version: &str, extra_workspace_dirs: &[&str]) -> Self {
+        let fmt = || cmd("cargo", ["fmt", "--all", "--", "--check"]);
+        let udeps = || cmd("cargo", ["udeps", "--all-targets"]);
+
+        self.add_run(fmt());
+
+        for dir in extra_workspace_dirs {
+            self.add_run(fmt().in_directory(dir));
+        }
+
+        self.add_step(install("cargo-udeps", udeps_version));
+
+        self.add_run(udeps());
+
+        for dir in extra_workspace_dirs {
+            self.add_run(udeps().in_directory(dir));
+        }
+
+        self
     }
 }
 
