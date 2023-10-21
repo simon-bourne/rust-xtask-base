@@ -146,6 +146,15 @@ impl Platform {
         .into_iter()
     }
 
+    pub fn current(self) -> Self {
+        match OS {
+            "linux" => Platform::UbuntuLatest,
+            "macos" => Platform::MacOSLatest,
+            "windows" => Platform::WindowsLatest,
+            _ => panic!("Unknown platform: {OS}"),
+        }
+    }
+
     pub fn is_current(self) -> bool {
         match self {
             Platform::UbuntuLatest => OS == "linux",
