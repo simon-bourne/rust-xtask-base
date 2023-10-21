@@ -150,22 +150,22 @@ impl Tasks {
         Ok(())
     }
 
-    pub fn step(mut self, step: Step) -> Self {
+    pub fn step(mut self, step: impl Into<Step>) -> Self {
         self.add_step(step);
         self
     }
 
-    pub fn add_step(&mut self, step: Step) {
-        self.tasks.push(Task::Install(step));
+    pub fn add_step(&mut self, step: impl Into<Step>) {
+        self.tasks.push(Task::Install(step.into()));
     }
 
-    pub fn run(mut self, run: Run) -> Self {
+    pub fn run(mut self, run: impl Into<Run>) -> Self {
         self.add_run(run);
         self
     }
 
-    pub fn add_run(&mut self, run: Run) {
-        self.tasks.push(Task::Run(run))
+    pub fn add_run(&mut self, run: impl Into<Run>) {
+        self.tasks.push(Task::Run(run.into()))
     }
 
     pub fn cmd(
