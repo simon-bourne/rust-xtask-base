@@ -135,7 +135,7 @@ impl Tasks {
             is_nightly: rust.is_nightly(),
             tasks: Vec::new(),
         }
-        .setup(install_rust(rust))
+        .step(install_rust(rust))
     }
 
     pub fn execute(self) -> WorkflowResult<()> {
@@ -150,12 +150,12 @@ impl Tasks {
         Ok(())
     }
 
-    pub fn setup(mut self, step: Step) -> Self {
-        self.add_setup(step);
+    pub fn step(mut self, step: Step) -> Self {
+        self.add_step(step);
         self
     }
 
-    pub fn add_setup(&mut self, step: Step) {
+    pub fn add_step(&mut self, step: Step) {
         self.tasks.push(Task::Install(step));
     }
 
@@ -227,7 +227,7 @@ impl Tasks {
 
     pub fn lints(self, udeps_version: &str) -> Self {
         self.cmd("cargo", ["fmt", "--all", "--", "--check"])
-            .setup(install("cargo-udeps", udeps_version))
+            .step(install("cargo-udeps", udeps_version))
             .cmd("cargo", ["udeps", "--all-targets"])
     }
 }
