@@ -62,13 +62,14 @@ impl CommonCmds {
         match self {
             CommonCmds::Ci => ci.execute(),
             CommonCmds::Codegen { check } => {
-                if !*check || Platform::current() != Platform::WindowsLatest {
+                if Platform::current() == Platform::WindowsLatest {
+                    println!("Codegen disabled on windows");
+                    Ok(())
+                } else {
                     generate_cargo_config(*check)?;
                     ci.write(*check)?;
-                    codegen(*check)?;
+                    codegen(*check)
                 }
-
-                Ok(())
             }
             CommonCmds::ShellCompletion { shell } => {
                 let target_dir = workspace.target_dir();
