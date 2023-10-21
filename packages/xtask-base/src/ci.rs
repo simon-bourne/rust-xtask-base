@@ -1,20 +1,24 @@
 use crate::{
     github::actions::{
-        self, cmd, install, install_rust, pull_request, push, rust_toolchain, script, Platform,
-        Run, Rust, Step, Workflow,
+        self, cmd, install, install_rust, pull_request, push, rust_toolchain, script, Event,
+        Platform, Run, Rust, Step, Workflow,
     },
     WorkflowResult,
 };
 
 pub struct CI {
     name: String,
+    triggers: Vec<Event>,
     tasks: Vec<Tasks>,
 }
 
 impl CI {
+    /// Create a new CI workflow called "ci-tests", that triggers on any "push"
+    /// or "pull_request".
     pub fn new() -> Self {
         Self {
             name: "ci-tests".to_owned(),
+            triggers: vec![push().into(), pull_request().into()],
             tasks: Vec::new(),
         }
     }
@@ -22,6 +26,7 @@ impl CI {
     pub fn named(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
+            triggers: Vec::new(),
             tasks: Vec::new(),
         }
     }
@@ -87,6 +92,11 @@ impl CI {
         self
     }
 
+    pub fn on(mut self, event: impl Into<Event>) -> Self {
+        self.triggers.push(event.into());
+        self
+    }
+
     pub fn job(mut self, tasks: Tasks) -> Self {
         self.add_job(tasks);
         self
@@ -109,7 +119,7 @@ impl CI {
     }
 
     fn into_workflow(self) -> Workflow {
-        let mut workflow = actions::workflow(&self.name).on([push(), pull_request()]);
+        let mut workflow = actions::workflow(&self.name).on(self.triggers);
 
         for task in self.tasks {
             workflow.add_job(
