@@ -236,7 +236,12 @@ fn update_file(path: impl AsRef<Path>, contents: &str, check: bool) -> WorkflowR
         let existing_contents = fs::read_to_string(path)?.lines().join("\n");
 
         if existing_contents != contents.lines().join("\n") {
-            return Err(format!("Differences found in file \"{}\"", path.display()).into());
+            return Err(format!(
+                "Differences found in file \"{}\". New contents are:\n{}\n",
+                path.display(),
+                contents
+            )
+            .into());
         }
     } else {
         if let Some(parent) = path.parent() {
