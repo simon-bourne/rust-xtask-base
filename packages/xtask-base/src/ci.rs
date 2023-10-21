@@ -6,12 +6,24 @@ use crate::{
     WorkflowResult,
 };
 
-#[derive(Default)]
-pub struct CI(Vec<Tasks>);
+pub struct CI {
+    name: String,
+    tasks: Vec<Tasks>,
+}
 
 impl CI {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            name: "ci-tests".to_owned(),
+            tasks: Vec::new(),
+        }
+    }
+
+    pub fn named(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            tasks: Vec::new(),
+        }
     }
 
     pub fn standard_workflow() -> Self {
@@ -38,7 +50,7 @@ impl CI {
 
     pub fn standard_tests(mut self, rustc_version: &str) -> Self {
         for platform in Platform::latest() {
-            self.0.push(
+            self.tasks.push(
                 Tasks::new(
                     "tests",
                     platform,
@@ -53,7 +65,7 @@ impl CI {
 
     pub fn standard_release_tests(mut self, rustc_version: &str) -> Self {
         for platform in Platform::latest() {
-            self.0.push(
+            self.tasks.push(
                 Tasks::new(
                     "release-tests",
                     platform,
@@ -72,7 +84,7 @@ impl CI {
     }
 
     pub fn add_job(&mut self, tasks: Tasks) {
-        self.0.push(tasks);
+        self.tasks.push(tasks);
     }
 
     pub fn write(self, check: bool) -> WorkflowResult<()> {
@@ -88,9 +100,9 @@ impl CI {
     }
 
     fn into_workflow(self) -> Workflow {
-        let mut workflow = actions::workflow("ci-tests").on([push(), pull_request()]);
+        let mut workflow = actions::workflow(&self.name).on([push(), pull_request()]);
 
-        for task in self.0 {
+        for task in self.tasks {
             workflow.add_job(
                 &task.name,
                 task.platform,
@@ -99,6 +111,12 @@ impl CI {
         }
 
         workflow
+    }
+}
+
+impl Default for CI {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
