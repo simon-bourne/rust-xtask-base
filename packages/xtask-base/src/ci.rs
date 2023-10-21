@@ -148,13 +148,17 @@ pub struct Tasks {
 
 impl Tasks {
     pub fn new(name: impl Into<String>, platform: Platform, rust: Rust) -> Self {
+        Self::empty(name, platform, rust.is_nightly()).step(install_rust(rust))
+    }
+
+    // TODO: The `is-nightly` flag is a bit horrible.
+    pub fn empty(name: impl Into<String>, platform: Platform, is_nightly: bool) -> Self {
         Self {
             name: name.into(),
             platform,
-            is_nightly: rust.is_nightly(),
+            is_nightly,
             tasks: Vec::new(),
         }
-        .step(install_rust(rust))
     }
 
     pub fn execute(self) -> WorkflowResult<()> {
