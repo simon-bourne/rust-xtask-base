@@ -161,7 +161,7 @@ impl Tasks {
         if self.platform.is_current() {
             for task in self.tasks.into_iter() {
                 if let Task::Run(cmd) = task {
-                    cmd.run(self.is_nightly)?;
+                    cmd.rustup_run(self.is_nightly)?;
                 }
             }
         }
@@ -190,7 +190,7 @@ impl Tasks {
     pub fn cmd(
         self,
         program: impl Into<String>,
-        args: impl IntoIterator<Item = impl Into<String>>,
+        args: impl IntoIterator<Item = impl AsRef<str>>,
     ) -> Self {
         self.run(cmd(program, args))
     }
@@ -198,7 +198,7 @@ impl Tasks {
     pub fn add_cmd(
         &mut self,
         program: impl Into<String>,
-        args: impl IntoIterator<Item = impl Into<String>>,
+        args: impl IntoIterator<Item = impl AsRef<str>>,
     ) {
         self.add_run(cmd(program, args));
     }
@@ -207,7 +207,7 @@ impl Tasks {
     where
         Cmds: IntoIterator<Item = Cmd>,
         Cmd: IntoIterator<Item = Arg>,
-        Arg: Into<String>,
+        Arg: AsRef<str>,
     {
         self.run(script(cmds))
     }
@@ -216,7 +216,7 @@ impl Tasks {
     where
         Cmds: IntoIterator<Item = Cmd>,
         Cmd: IntoIterator<Item = Arg>,
-        Arg: Into<String>,
+        Arg: AsRef<str>,
     {
         self.add_run(script(cmds));
     }
@@ -246,7 +246,7 @@ impl Tasks {
         tests().map(|run| self.add_run(run));
 
         for dir in extra_workspace_dirs {
-            tests().map(|run| self.add_run(run.in_directory(dir)));
+            tests().map(|run| self.add_run(run.dir(dir)));
         }
 
         self
@@ -257,7 +257,7 @@ impl Tasks {
         self.add_run(test());
 
         for dir in extra_workspace_dirs {
-            self.add_run(test().in_directory(dir));
+            self.add_run(test().dir(dir));
         }
 
         self
@@ -270,7 +270,7 @@ impl Tasks {
         self.add_run(fmt());
 
         for dir in extra_workspace_dirs {
-            self.add_run(fmt().in_directory(dir));
+            self.add_run(fmt().dir(dir));
         }
 
         self.add_step(install("cargo-udeps", udeps_version));
@@ -278,7 +278,7 @@ impl Tasks {
         self.add_run(udeps());
 
         for dir in extra_workspace_dirs {
-            self.add_run(udeps().in_directory(dir));
+            self.add_run(udeps().dir(dir));
         }
 
         self

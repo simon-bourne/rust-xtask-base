@@ -427,9 +427,9 @@ pub struct Run {
     directory: Option<String>,
 }
 
-pub fn cmd(program: impl Into<String>, args: impl IntoIterator<Item = impl Into<String>>) -> Run {
+pub fn cmd(program: impl Into<String>, args: impl IntoIterator<Item = impl AsRef<str>>) -> Run {
     Run {
-        script: RunEnum::Single(Cmd::new(program, args)),
+        script: RunEnum::Single(Cmd::new(program).args(args)),
         directory: None,
     }
 }
@@ -438,7 +438,7 @@ pub fn script<Cmds, Cmd, Arg>(lines: Cmds) -> Run
 where
     Cmds: IntoIterator<Item = Cmd>,
     Cmd: IntoIterator<Item = Arg>,
-    Arg: Into<String>,
+    Arg: AsRef<str>,
 {
     Run {
         script: RunEnum::Multi(lines.into_iter().map(Into::into).collect()),
@@ -447,12 +447,16 @@ where
 }
 
 impl Run {
-    pub fn in_directory(mut self, directory: &str) -> Self {
+    pub fn dir(mut self, directory: &str) -> Self {
         self.directory = Some(directory.to_string());
         self
     }
 
-    pub fn run(&self, is_nightly: bool) -> WorkflowResult<()> {
+    pub fn run(&self) -> WorkflowResult<()> {
+        self.rustup_run(false)
+    }
+
+    pub fn rustup_run(&self, is_nightly: bool) -> WorkflowResult<()> {
         let dir = self.directory.as_ref();
 
         match &self.script {
@@ -503,17 +507,40 @@ enum RunEnum {
     Multi(Vec<Cmd>),
 }
 
-struct Cmd {
+#[doc(hidden)]
+pub struct Cmd {
     program: String,
     args: Vec<String>,
 }
 
 impl Cmd {
-    fn new(program: impl Into<String>, args: impl IntoIterator<Item = impl Into<String>>) -> Self {
+    pub fn new(program: impl Into<String>) -> Self {
         Self {
             program: program.into(),
-            args: args.into_iter().map(Into::into).collect(),
+            args: Vec::new(),
         }
+    }
+
+    pub fn arg(mut self, arg: impl AsRef<str>) -> Self {
+        self.args.push(arg.as_ref().to_owned());
+        self
+    }
+
+    pub fn args(mut self, args: impl IntoIterator<Item = impl AsRef<str>>) -> Self {
+        self.args
+            .extend(args.into_iter().map(|s| s.as_ref().to_owned()));
+        self
+    }
+
+    #[doc(hidden)]
+    pub fn __extend_arg(mut self, arg_tail: &str) -> Self {
+        if let Some(last_arg) = self.args.last_mut() {
+            last_arg.push_str(arg_tail);
+        } else {
+            self.program.push_str(arg_tail);
+        }
+
+        self
     }
 
     fn run_in_dir(&self, dir: Option<impl Into<PathBuf>>, is_nightly: bool) -> WorkflowResult<()> {
@@ -553,7 +580,7 @@ impl fmt::Display for Cmd {
 
 impl<Arg, Args> From<Args> for Cmd
 where
-    Arg: Into<String>,
+    Arg: AsRef<str>,
     Args: IntoIterator<Item = Arg>,
 {
     fn from(args: Args) -> Self {
@@ -561,7 +588,16 @@ where
         let program = args
             .next()
             .expect("Can't extract executable from empty argument list");
-        Self::new(program, args)
+        Self::new(program.as_ref()).args(args)
+    }
+}
+
+impl From<Cmd> for Run {
+    fn from(value: Cmd) -> Self {
+        Self {
+            script: RunEnum::Single(value),
+            directory: None,
+        }
     }
 }
 
@@ -571,4 +607,17 @@ pub fn when(condition: bool, step: impl Into<Step>) -> Step {
     } else {
         Step(StepEnum::Empty)
     }
+}
+
+#[doc(hidden)]
+pub use xshell_macros::__cmd;
+
+#[macro_export]
+macro_rules! cmd{
+    ($cmd:literal) => {{
+        use $crate::github::actions::{Cmd, Run, __cmd};
+        let f = |prog| Cmd::new(prog);
+        let cmd: Cmd = __cmd!(f $cmd);
+        Run::from(cmd)
+    }}
 }
