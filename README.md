@@ -5,10 +5,17 @@
 Utilities for creating [cargo-xtask](https://github.com/matklad/cargo-xtask) projects. Create an `xtask` crate with a `main.rs` something like:
 
 ```rust
-use xtask_base::{build_readme, ci::CI, generate_open_source_files, CommonCmds, WorkflowResult};
+use xtask_base::{
+    build_readme,
+    ci::{StandardVersions, CI},
+    generate_open_source_files, CommonCmds, WorkflowResult,
+};
 
 fn main() {
-    CommonCmds::run(CI::standard_workflow(&[]), code_gen)
+    CommonCmds::run(
+        CI::standard_workflow(StandardVersions::default(), &[]),
+        code_gen,
+    )
 }
 
 fn code_gen(check: bool) -> WorkflowResult<()> {

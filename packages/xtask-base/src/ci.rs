@@ -31,15 +31,15 @@ impl CI {
         }
     }
 
-    pub fn standard_workflow(extra_workspace_dirs: &[&str]) -> Self {
-        let rustc_stable_version = "1.73";
-        let rustc_nightly_version = "nightly-2023-10-14";
-        let udeps_version = "0.1.43";
-
+    pub fn standard_workflow(versions: StandardVersions, extra_workspace_dirs: &[&str]) -> Self {
         Self::new()
-            .standard_tests(rustc_stable_version, extra_workspace_dirs)
-            .standard_release_tests(rustc_stable_version, extra_workspace_dirs)
-            .standard_lints(rustc_nightly_version, udeps_version, extra_workspace_dirs)
+            .standard_tests(versions.rustc_stable_version, extra_workspace_dirs)
+            .standard_release_tests(versions.rustc_stable_version, extra_workspace_dirs)
+            .standard_lints(
+                versions.rustc_nightly_version,
+                versions.udeps_version,
+                extra_workspace_dirs,
+            )
     }
 
     pub fn standard_lints(
@@ -136,6 +136,22 @@ impl CI {
 impl Default for CI {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+pub struct StandardVersions<'a> {
+    pub rustc_stable_version: &'a str,
+    pub rustc_nightly_version: &'a str,
+    pub udeps_version: &'a str,
+}
+
+impl Default for StandardVersions<'static> {
+    fn default() -> Self {
+        Self {
+            rustc_stable_version: "1.73",
+            rustc_nightly_version: "nightly-2023-10-14",
+            udeps_version: "0.1.43",
+        }
     }
 }
 
