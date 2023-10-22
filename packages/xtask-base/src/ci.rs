@@ -178,6 +178,10 @@ impl Tasks {
         self.tasks.push(Task::Install(step.into()));
     }
 
+    pub fn step_when(self, condition: bool, step: impl Into<Step>) -> Self {
+        self.when(condition, Self::step, step)
+    }
+
     pub fn run(mut self, run: impl Into<Run>) -> Self {
         self.add_run(run);
         self
@@ -185,6 +189,10 @@ impl Tasks {
 
     pub fn add_run(&mut self, run: impl Into<Run>) {
         self.tasks.push(Task::Run(run.into()))
+    }
+
+    pub fn run_when(self, condition: bool, run: impl Into<Run>) -> Self {
+        self.when(condition, Self::run, run)
     }
 
     pub fn cmd(
@@ -219,6 +227,10 @@ impl Tasks {
         Arg: AsRef<str>,
     {
         self.add_run(script(cmds));
+    }
+
+    pub fn apply<T>(self, f: impl FnOnce(Self) -> T) -> T {
+        f(self)
     }
 
     pub fn tests(mut self, extra_workspace_dirs: &[&str]) -> Self {
@@ -282,6 +294,14 @@ impl Tasks {
         }
 
         self
+    }
+
+    fn when<T>(self, condition: bool, f: impl FnOnce(Self, T) -> Self, x: T) -> Self {
+        if condition {
+            f(self, x)
+        } else {
+            self
+        }
     }
 }
 
