@@ -31,22 +31,27 @@ impl CI {
         }
     }
 
-    pub fn standard_workflow(versions: StandardVersions, extra_workspace_dirs: &[&str]) -> Self {
+    /// `extra_workspaces` is a tuple of (name, dir).
+    pub fn standard_workflow(
+        versions: StandardVersions,
+        extra_workspaces: &[(&str, &str)],
+    ) -> Self {
         Self::new()
-            .standard_tests(versions.rustc_stable_version, extra_workspace_dirs)
-            .standard_release_tests(versions.rustc_stable_version, extra_workspace_dirs)
+            .standard_tests(versions.rustc_stable_version, extra_workspaces)
+            .standard_release_tests(versions.rustc_stable_version, extra_workspaces)
             .standard_lints(
                 versions.rustc_nightly_version,
                 versions.udeps_version,
-                extra_workspace_dirs,
+                extra_workspaces,
             )
     }
 
+    /// `extra_workspaces` is a tuple of (name, dir).
     pub fn standard_lints(
         self,
         rustc_version: &str,
         udeps_version: &str,
-        extra_workspace_dirs: &[&str],
+        extra_workspaces: &[(&str, &str)],
     ) -> Self {
         self.job(
             Tasks::new(
@@ -54,11 +59,23 @@ impl CI {
                 Platform::UbuntuLatest,
                 rust_toolchain(rustc_version).minimal().default().rustfmt(),
             )
-            .lints(udeps_version, extra_workspace_dirs),
+            .lints(
+                udeps_version,
+                &extra_workspaces
+                    .iter()
+                    .copied()
+                    .map(|(_name, dir)| dir)
+                    .collect::<Vec<_>>(),
+            ),
         )
     }
 
-    pub fn standard_tests(mut self, rustc_version: &str, extra_workspace_dirs: &[&str]) -> Self {
+    /// `extra_workspaces` is a tuple of (name, dir).
+    pub fn standard_tests(
+        mut self,
+        rustc_version: &str,
+        extra_workspaces: &[(&str, &str)],
+    ) -> Self {
         for platform in Platform::latest() {
             self.tasks.push(
                 Tasks::new(
@@ -66,17 +83,30 @@ impl CI {
                     platform,
                     rust_toolchain(rustc_version).minimal().default().clippy(),
                 )
-                .tests(extra_workspace_dirs),
+                .codegen()
+                .tests(None),
             );
+
+            for (name, workspace_dir) in extra_workspaces {
+                self.tasks.push(
+                    Tasks::new(
+                        &format!("tests-{name}"),
+                        platform,
+                        rust_toolchain(rustc_version).minimal().default().clippy(),
+                    )
+                    .tests(Some(workspace_dir)),
+                );
+            }
         }
 
         self
     }
 
+    /// `extra_workspaces` is a tuple of (name, dir).
     pub fn standard_release_tests(
         mut self,
         rustc_version: &str,
-        extra_workspace_dirs: &[&str],
+        extra_workspaces: &[(&str, &str)],
     ) -> Self {
         for platform in Platform::latest() {
             self.tasks.push(
@@ -85,8 +115,19 @@ impl CI {
                     platform,
                     rust_toolchain(rustc_version).minimal().default(),
                 )
-                .release_tests(extra_workspace_dirs),
+                .release_tests(None),
             );
+
+            for (name, dir) in extra_workspaces {
+                self.tasks.push(
+                    Tasks::new(
+                        &format!("release-tests-{name}"),
+                        platform,
+                        rust_toolchain(rustc_version).minimal().default(),
+                    )
+                    .release_tests(Some(dir)),
+                );
+            }
         }
 
         self
@@ -249,7 +290,11 @@ impl Tasks {
         f(self)
     }
 
-    pub fn tests(mut self, extra_workspace_dirs: &[&str]) -> Self {
+    pub fn codegen(self) -> Self {
+        self.cmd("cargo", ["xtask", "codegen", "--check"])
+    }
+
+    pub fn tests(mut self, workspace_dir: Option<&str>) -> Self {
         let tests = || {
             [
                 cmd(
@@ -270,22 +315,22 @@ impl Tasks {
             ]
         };
 
-        self.add_cmd("cargo", ["xtask", "codegen", "--check"]);
-        tests().map(|run| self.add_run(run));
-
-        for dir in extra_workspace_dirs {
+        if let Some(dir) = workspace_dir {
             tests().map(|run| self.add_run(run.dir(dir)));
+        } else {
+            tests().map(|run| self.add_run(run));
         }
 
         self
     }
 
-    pub fn release_tests(mut self, extra_workspace_dirs: &[&str]) -> Self {
+    pub fn release_tests(mut self, workspace_dir: Option<&str>) -> Self {
         let test = || cmd("cargo", ["test", "--benches", "--tests", "--release"]);
-        self.add_run(test());
 
-        for dir in extra_workspace_dirs {
+        if let Some(dir) = workspace_dir {
             self.add_run(test().dir(dir));
+        } else {
+            self.add_run(test());
         }
 
         self
