@@ -13,11 +13,11 @@ pub struct CI {
 }
 
 impl CI {
-    /// Create a new CI workflow called "ci-tests", that triggers on any "push"
+    /// Create a new CI workflow called "tests", that triggers on any "push"
     /// or "pull_request".
     pub fn new() -> Self {
         Self {
-            name: "ci-tests".to_owned(),
+            name: "tests".to_owned(),
             triggers: vec![push().into(), pull_request().into()],
             tasks: Vec::new(),
         }
