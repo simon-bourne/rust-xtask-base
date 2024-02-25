@@ -191,7 +191,7 @@ impl Default for StandardVersions<'static> {
         Self {
             rustc_stable_version: "1.76",
             rustc_nightly_version: "nightly-2024-02-24",
-            udeps_version: "0.1.43",
+            udeps_version: "0.1.46",
         }
     }
 }
