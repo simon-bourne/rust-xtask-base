@@ -155,7 +155,7 @@ pub fn build_readme(dir: &str, check: bool) -> WorkflowResult<()> {
 /// The follwing files are generated in the workspace root:
 ///
 /// - `rustmt.toml`
-/// - `.cargo/config`
+/// - `.cargo/config.toml`
 /// - `LICENSE-APACHE`
 /// - `LICENSE-MIT`
 pub fn generate_open_source_files(start_year: i32, check: bool) -> WorkflowResult<()> {
@@ -177,7 +177,7 @@ pub fn generate_rustfmt_config(check: bool) -> WorkflowResult<()> {
     Ok(())
 }
 
-/// Generate `.cargo/config` in the workspace root
+/// Generate `.cargo/config.toml` in the workspace root
 ///
 /// It contains a single alias for `xtask`
 pub fn generate_cargo_config(check: bool) -> WorkflowResult<()> {
@@ -186,8 +186,8 @@ pub fn generate_cargo_config(check: bool) -> WorkflowResult<()> {
     }
 
     update_file(
-        ".cargo/config",
-        include_str!("boilerplate/.cargo/config"),
+        ".cargo/config.toml",
+        include_str!("boilerplate/.cargo/config.toml"),
         check,
     )?;
 
