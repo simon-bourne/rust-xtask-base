@@ -189,7 +189,7 @@ pub struct StandardVersions<'a> {
 impl Default for StandardVersions<'static> {
     fn default() -> Self {
         Self {
-            rustc_stable_version: "1.73",
+            rustc_stable_version: "1.76",
             rustc_nightly_version: "nightly-2023-10-14",
             udeps_version: "0.1.43",
         }
