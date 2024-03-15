@@ -349,8 +349,6 @@ pub fn install(crate_name: &str, version: &str) -> Step {
 
 pub struct Rust {
     toolchain: String,
-    profile: Option<&'static str>,
-    default: bool,
     components: Vec<&'static str>,
     targets: Option<Vec<String>>,
 }
@@ -358,8 +356,6 @@ pub struct Rust {
 pub fn rust_toolchain(version: &str) -> Rust {
     Rust {
         toolchain: version.to_string(),
-        profile: None,
-        default: false,
         components: Vec::new(),
         targets: None,
     }
@@ -377,16 +373,6 @@ impl Rust {
         self
     }
 
-    pub fn minimal(mut self) -> Self {
-        self.profile = Some("minimal");
-        self
-    }
-
-    pub fn default(mut self) -> Self {
-        self.default = true;
-        self
-    }
-
     pub fn clippy(mut self) -> Self {
         self.components.push("clippy");
         self
@@ -400,15 +386,7 @@ impl Rust {
 
 impl From<Rust> for Step {
     fn from(value: Rust) -> Self {
-        let mut action = action("ructions/toolchain@v2").with("toolchain", value.toolchain);
-
-        if let Some(profile) = value.profile {
-            action.add_with("profile", profile);
-        }
-
-        if value.default {
-            action.add_with("default", value.default);
-        }
+        let mut action = action(&format!("dtolnay/rust-toolchain@{}", value.toolchain));
 
         if !value.components.is_empty() {
             action.add_with("components", value.components.join(", "));

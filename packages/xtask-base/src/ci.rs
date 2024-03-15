@@ -57,7 +57,7 @@ impl CI {
             Tasks::new(
                 "lints",
                 Platform::UbuntuLatest,
-                rust_toolchain(rustc_version).minimal().default().rustfmt(),
+                rust_toolchain(rustc_version).rustfmt(),
             )
             .lints(
                 udeps_version,
@@ -78,13 +78,9 @@ impl CI {
     ) -> Self {
         for platform in Platform::latest() {
             self.tasks.push(
-                Tasks::new(
-                    "tests",
-                    platform,
-                    rust_toolchain(rustc_version).minimal().default().clippy(),
-                )
-                .codegen()
-                .tests(None),
+                Tasks::new("tests", platform, rust_toolchain(rustc_version).clippy())
+                    .codegen()
+                    .tests(None),
             );
 
             for (name, workspace_dir) in extra_workspaces {
@@ -92,7 +88,7 @@ impl CI {
                     Tasks::new(
                         &format!("tests-{name}"),
                         platform,
-                        rust_toolchain(rustc_version).minimal().default().clippy(),
+                        rust_toolchain(rustc_version).clippy(),
                     )
                     .tests(Some(workspace_dir)),
                 );
@@ -110,12 +106,8 @@ impl CI {
     ) -> Self {
         for platform in Platform::latest() {
             self.tasks.push(
-                Tasks::new(
-                    "release-tests",
-                    platform,
-                    rust_toolchain(rustc_version).minimal().default(),
-                )
-                .release_tests(None),
+                Tasks::new("release-tests", platform, rust_toolchain(rustc_version))
+                    .release_tests(None),
             );
 
             for (name, dir) in extra_workspaces {
@@ -123,7 +115,7 @@ impl CI {
                     Tasks::new(
                         &format!("release-tests-{name}"),
                         platform,
-                        rust_toolchain(rustc_version).minimal().default(),
+                        rust_toolchain(rustc_version),
                     )
                     .release_tests(Some(dir)),
                 );
