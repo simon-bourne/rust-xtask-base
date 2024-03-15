@@ -386,7 +386,7 @@ impl Rust {
 
 impl From<Rust> for Step {
     fn from(value: Rust) -> Self {
-        let mut action = action(&format!("dtolnay/rust-toolchain@{}", value.toolchain));
+        let mut action = action("dtolnay/rust-toolchain@master").with("toolchain", value.toolchain);
 
         if !value.components.is_empty() {
             action.add_with("components", value.components.join(", "));

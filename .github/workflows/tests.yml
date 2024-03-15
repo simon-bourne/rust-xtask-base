@@ -9,8 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: dtolnay/rust-toolchain@1.76
+    - uses: dtolnay/rust-toolchain@master
       with:
+        toolchain: 1.76
         components: clippy
     - uses: Swatinem/rust-cache@v2
     - run: cargo xtask codegen --check
@@ -22,8 +23,9 @@ jobs:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: dtolnay/rust-toolchain@1.76
+    - uses: dtolnay/rust-toolchain@master
       with:
+        toolchain: 1.76
         components: clippy
     - uses: Swatinem/rust-cache@v2
     - run: cargo xtask codegen --check
@@ -35,8 +37,9 @@ jobs:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: dtolnay/rust-toolchain@1.76
+    - uses: dtolnay/rust-toolchain@master
       with:
+        toolchain: 1.76
         components: clippy
     - uses: Swatinem/rust-cache@v2
     - run: cargo xtask codegen --check
@@ -48,29 +51,36 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: dtolnay/rust-toolchain@1.76
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: 1.76
     - uses: Swatinem/rust-cache@v2
     - run: cargo test --benches --tests --release
   release-tests-macos-latest:
     runs-on: macos-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: dtolnay/rust-toolchain@1.76
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: 1.76
     - uses: Swatinem/rust-cache@v2
     - run: cargo test --benches --tests --release
   release-tests-windows-latest:
     runs-on: windows-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: dtolnay/rust-toolchain@1.76
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: 1.76
     - uses: Swatinem/rust-cache@v2
     - run: cargo test --benches --tests --release
   lints-ubuntu-latest:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
-    - uses: dtolnay/rust-toolchain@nightly-2024-02-24
+    - uses: dtolnay/rust-toolchain@master
       with:
+        toolchain: nightly-2024-02-24
         components: rustfmt
     - uses: Swatinem/rust-cache@v2
     - run: cargo fmt --all -- --check
