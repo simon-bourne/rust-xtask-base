@@ -86,7 +86,7 @@ impl CI {
             for (name, workspace_dir) in extra_workspaces {
                 self.tasks.push(
                     Tasks::new(
-                        &format!("tests-{name}"),
+                        format!("tests-{name}"),
                         platform,
                         rust_toolchain(rustc_version).clippy(),
                     )
@@ -113,7 +113,7 @@ impl CI {
             for (name, dir) in extra_workspaces {
                 self.tasks.push(
                     Tasks::new(
-                        &format!("release-tests-{name}"),
+                        format!("release-tests-{name}"),
                         platform,
                         rust_toolchain(rustc_version),
                     )
